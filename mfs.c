@@ -174,10 +174,8 @@ void init()
 //**********************************************************************
 int findFreeDirectoryEntry()//Find inode that is free
 {
-    printf("Beginning findFreeDirectoryEntry()\n");
 	int i;
 	int retval = -1;
-    printf("findFreeDirectoryEntry: retval = %d\n", retval);
     
 	for(i = 0; i < 125; i++)
 	{
@@ -230,11 +228,9 @@ int findFreeBlock()
 void put(char* filename)
 {
 	//put() starts here
-	printf("Beginning put()\n");
 	struct stat buf;
     
 	//..................................................................
-    printf("put(): Error: File not found\n");
 	int status = stat(filename, &buf);
 	if(status == -1)
 	{
@@ -243,33 +239,24 @@ void put(char* filename)
 	}
     
 	//..................................................................
-    printf("put(): Error: Not enough room in the file system (1)\n");
-    if(buf.st_size > df())
-    {
-        printf("Error: Not enough room in the file system (1) \n");
-        return;
-    }
+  if(buf.st_size > df())
+  {
+      printf("Error: Not enough room in the file system (1) \n");
+      return;
+  }
     
 	//..................................................................
-    printf("put(): Just before int dir_idx = findFreeDirectoryEntry()\n");
-    int dir_idx = findFreeDirectoryEntry();
-    printf("put(): Just before: Error: Not enough room in the file system (2)\n");
-    if(dir_idx == -1)
-    {
-        printf("Error: Not enough room in the file system (2)\n");
-        return;
-    }
+  int dir_idx = findFreeDirectoryEntry();
+  if(dir_idx == -1)
+  {
+      printf("Error: Not enough room in the file system (2)\n");
+      return;
+  }
     
 	//..................................................................
-	printf("put(): after first three Error checks: just before directory_ptr[] statements\n");
 	directory_ptr[dir_idx].valid = 1;//we are using it; marked as being used
-    printf("put(): directory_ptr[dir_idx].valid = %d\n", directory_ptr[dir_idx].valid);
-	
 	directory_ptr[dir_idx].name = (char*) malloc(strlen(filename));
-	printf("put(): directory_ptr[dir_idx].name = %s\n", directory_ptr[dir_idx].name);
-    
 	strncpy(directory_ptr[dir_idx].name, filename, strlen(filename));
-    printf("put(): directory_ptr[dir_idx].name = %s\n", directory_ptr[dir_idx].name);
 
 	int inode_idx = findFreeInode();
 	
@@ -280,14 +267,10 @@ void put(char* filename)
 	}
 	
 	directory_ptr[dir_idx].inode_idx = inode_idx;
-	
-	
-	
 	inode_array_ptr[inode_idx]->size = buf.st_size;
 	inode_array_ptr[inode_idx]->date = time(NULL);
 	inode_array_ptr[inode_idx]->valid = 1;
 	//Open the input file read-only
-    printf("put(): open %s for reading\n", filename);
 	FILE* ifp = fopen(filename, "r");
 	
 	
@@ -305,8 +288,7 @@ void put(char* filename)
 		return;
 	}
 */
-	//..................................................................
-    
+	//..................................................................    
 	while(copy_size >= BLOCK_SIZE)
 	{
 		int block_index = findFreeBlock();
@@ -376,12 +358,8 @@ void put(char* filename)
 		//handle remainder (41 min 19 sec into video)
 		fseek(ifp, offset, SEEK_SET);
 		int bytes = fread(data_blocks[block_index], copy_size, 1, ifp);
-		printf("main:if copy_size > 0: bytes = %d\n", bytes);
-		
 	}
-	
 	fclose(ifp);
-	
 	return;
 }
 	
@@ -401,22 +379,17 @@ int main(int argc, char* argv[])
 	init();
 	time_t file_time;
 	file_time = time(NULL);
-	
-	printf("Time as time_t (time in seconds from January 1, 1970): %ld\n", file_time);
-	printf("Time as string; %s\n", ctime(&file_time));
-	
-	printf("%d %s %s\n", 65535, ctime(&file_time), "file.txt");
-    
-    //This is pointer to where the command line input string is stored
-  	char* command_string = (char*) malloc( MAX_COMMAND_SIZE );
-  
-    
+	//printf("Time as time_t (time in seconds from January 1, 1970): %ld\n", file_time);
+	//printf("Time as string; %s\n", ctime(&file_time));
+	//printf("%d %s %s\n", 65535, ctime(&file_time), "file.txt");
+  //This is pointer to where the command line input string is stored
+  char* command_string = (char*) malloc( MAX_COMMAND_SIZE );
+
 	while( 1 )//continuous input in the bash shell loop
 	{
 		// Print out the msh prompt
 		printf ("mfs>");//print the bash shell prompt
 
-		
 		char* fgetsreturn = fgets (command_string, MAX_COMMAND_SIZE, stdin);
 
 		while( !fgetsreturn );
@@ -428,9 +401,6 @@ int main(int argc, char* argv[])
 			continue;
 		}
 
-		
-		
-		
 		//..................................................................
 		//Separate input into tokens
 		/* Parse input */
@@ -500,8 +470,8 @@ int main(int argc, char* argv[])
 		if((strstr(token[0], "put")!=NULL))//call put()
 		{
 			//char* filename;
-			printf("Call function put()\n");
-			printf("Local file name token[1]= %s\n", token[1]);
+			//printf("Call function put()\n");
+			//printf("Local file name token[1]= %s\n", token[1]);
 			put(token[1]);
 
 
