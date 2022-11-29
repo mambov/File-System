@@ -1,6 +1,25 @@
+/*
+ 
+  Name: Michael McKinley
+  ID: 1000255408
+  
+  Name: Diego Vester
+  ID: 1001329342
+ 
+ */
+
+/*
+CSE3320-002
+Fall 2022
+Programming Assignment 4: File System
+Assigned: November 14, 2022
+Due: Wednesday, November 30, 2022 by 5:30 PM CST
+*/
+
+
 // The MIT License (MIT)
 // 
-// Copyright (c) 2016, 2017 Trevor Bakker 
+// Copyright (c) 2016 Trevor Bakker 
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -11,6 +30,7 @@
 // 
 // The above copyright notice and this permission notice shall be included in
 // all copies or substantial portions of the Software.
+// 
 // 
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 // IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -29,6 +49,7 @@
 #include <errno.h>
 #include <string.h>
 #include <signal.h>
+#include <time.h>
 #include <sys/stat.h>
 
 #define WHITESPACE " \t\n"      // We want to split our command line up into tokens
@@ -36,260 +57,464 @@
                                 // In this case  white space
                                 // will separate the tokens on our command line
 
-#define MAX_COMMAND_SIZE 255    // The maximum command-line size
+#define MAX_COMMAND_SIZE 32    // The maximum command-line size
 
-#define MAX_NUM_ARGUMENTS 5     // Mav shell only supports five arguments
+#define MAX_NUM_ARGUMENTS 4     // Mav shell only supports four arguments
 
-#define NUM_BLOCKS 512
-#define BLOCK_SIZE 1024
 
-unsigned char file_data[NUM_BLOCKS][BLOCK_SIZE];
+//The total memory size is 4226*8192 = 34619392 = ~33 MB
+#define NUM_BLOCKS 4226
+#define BLOCK_SIZE 8192
+#define NUM_FILES 125
+#define NUM_INODES 125
+#define MAX_BLOCKS_PER_FILE 32
 
-int    status;                   // Hold the status of all return values.
-struct stat buf;                 // stat struct to hold the returns from the stat call
+unsigned char data_blocks[NUM_BLOCKS][BLOCK_SIZE];
+int used_blocks[NUM_BLOCKS];
 
-int copy( char *file_read, char *file_write )
-{
-
-  
- 
-    // Open the input file read-only 
-    FILE *ifp = fopen ( file_read, "r" ); 
-    printf("Reading %d bytes from %s\n", (int) buf . st_size, file_read );
- 
-    // Save off the size of the input file since we'll use it in a couple of places and 
-    // also initialize our index variables to zero. 
-    int copy_size   = buf . st_size;
-
-    // We want to copy and write in chunks of BLOCK_SIZE. So to do this 
-    // we are going to use fseek to move along our file stream in chunks of BLOCK_SIZE.
-    // We will copy bytes, increment our file pointer by BLOCK_SIZE and repeat.
-    int offset      = 0;               
-
-    // We are going to copy and store our file in BLOCK_SIZE chunks instead of one big 
-    // memory pool. Why? We are simulating the way the file system stores file data in
-    // blocks of space on the disk. block_index will keep us pointing to the area of
-    // the area that we will read from or write to.
-    int block_index = 0;
- 
-    // copy_size is initialized to the size of the input file so each loop iteration we
-    // will copy BLOCK_SIZE bytes from the file then reduce our copy_size counter by
-    // BLOCK_SIZE number of bytes. When copy_size is less than or equal to zero we know
-    // we have copied all the data from the input file.
-    while( copy_size > 0 )
-    {
-
-      // Index into the input file by offset number of bytes.  Initially offset is set to
-      // zero so we copy BLOCK_SIZE number of bytes from the front of the file.  We 
-      // then increase the offset by BLOCK_SIZE and continue the process.  This will
-      // make us copy from offsets 0, BLOCK_SIZE, 2*BLOCK_SIZE, 3*BLOCK_SIZE, etc.
-      fseek( ifp, offset, SEEK_SET );
- 
-      // Read BLOCK_SIZE number of bytes from the input file and store them in our
-      // data array. 
-      int bytes  = fread( file_data[block_index], BLOCK_SIZE, 1, ifp );
-
-      // If bytes == 0 and we haven't reached the end of the file then something is 
-      // wrong. If 0 is returned and we also have the EOF flag set then that is OK.
-      // It means we've reached the end of our input file.
-      if( bytes == 0 && !feof( ifp ) )
-      {
-        printf("An error occured reading from the input file.\n");
-        return -1;
-      }
-
-      // Clear the EOF file flag.
-      clearerr( ifp );
-
-      // Reduce copy_size by the BLOCK_SIZE bytes.
-      copy_size -= BLOCK_SIZE;
-      
-      // Increase the offset into our input file by BLOCK_SIZE.  This will allow
-      // the fseek at the top of the loop to position us to the correct spot.
-      offset    += BLOCK_SIZE;
-
-      // Increment the index into the block array 
-      block_index ++;
-    }
-
-    // We are done copying from the input file so close it out.
-    fclose( ifp );
- 
-    //*********************************************************************************
-    //
-    // The following chunk of code demonstrates similar functionality to your get command
-    //
-
-    // Now, open the output file that we are going to write the data to.
-    FILE *ofp;
-    ofp = fopen(file_write, "w");
-
-    if( ofp == NULL )
-    {
-      printf("Could not open output file: %s\n", file_write );
-      perror("Opening output file returned");
-      return -1;
-    }
-
-    // Initialize our offsets and pointers just we did above when reading from the file.
-    block_index = 0;
-    copy_size   = buf . st_size;
-    offset      = 0;
-
-    printf("Writing %d bytes to %s\n", (int) buf . st_size, file_write );
-
-    // Using copy_size as a count to determine when we've copied enough bytes to the output file.
-    // Each time through the loop, except the last time, we will copy BLOCK_SIZE number of bytes from
-    // our stored data to the file fp, then we will increment the offset into the file we are writing to.
-    // On the last iteration of the loop, instead of copying BLOCK_SIZE number of bytes we just copy
-    // how ever much is remaining ( copy_size % BLOCK_SIZE ).  If we just copied BLOCK_SIZE on the
-    // last iteration we'd end up with gibberish at the end of our file. 
-    while( copy_size > 0 )
-    { 
-
-      int num_bytes;
-
-      // If the remaining number of bytes we need to copy is less than BLOCK_SIZE then
-      // only copy the amount that remains. If we copied BLOCK_SIZE number of bytes we'd
-      // end up with garbage at the end of the file.
-      if( copy_size < BLOCK_SIZE )
-      {
-        num_bytes = copy_size;
-      }
-      else 
-      {
-        num_bytes = BLOCK_SIZE;
-      }
-
-      // Write num_bytes number of bytes from our data array into our output file.
-      fwrite( file_data[block_index], num_bytes, 1, ofp ); 
-
-      // Reduce the amount of bytes remaining to copy, increase the offset into the file
-      // and increment the block_index to move us to the next data block.
-      copy_size -= BLOCK_SIZE;
-      offset    += BLOCK_SIZE;
-      block_index ++;
-
-      // Since we've copied from the point pointed to by our current file pointer, increment
-      // offset number of bytes so we will be ready to copy to the next area of our output file.
-      fseek( ofp, offset, SEEK_SET );
-    }
-
-    // Close the output file, we're done. 
-    fclose( ofp );
-  
-  
-
-  return 0;
+//......................................................................
+struct directory_entry{
+	char* name;
+	int valid;
+	int inode_idx;
 };
 
-int run = 1;
-int main()
+//......................................................................
+
+struct directory_entry* directory_ptr;//pointer to directory_entry struct
+
+//......................................................................
+
+struct inode{
+	time_t date;
+	int valid;
+	int size;
+	int blocks[MAX_BLOCKS_PER_FILE];
+};
+
+//......................................................................
+
+struct inode* inode_array_ptr[NUM_INODES];
+
+
+//**********************************************************************
+
+void listImageFiles()
 {
-
-  char * cmd_str = (char*) malloc( MAX_COMMAND_SIZE );
-
-  while( run )
-  {
-    // Print out the mfs prompt
-    printf ("mfs> ");
-
-    // Read the command from the commandline.  The
-    // maximum command that will be read is MAX_COMMAND_SIZE
-    // This while command will wait here until the user
-    // inputs something since fgets returns NULL when there
-    // is no input
-    while( !fgets (cmd_str, MAX_COMMAND_SIZE, stdin) );
-
-    /* Parse input */
-    char *token[MAX_NUM_ARGUMENTS];
-
-    int   token_count = 0;                                 
-                                                           
-    // Pointer to point to the token
-    // parsed by strsep
-    char *arg_ptr;                                         
-                                                           
-    char *working_str  = strdup( cmd_str );                
-
-    // we are going to move the working_str pointer so
-    // keep track of its original value so we can deallocate
-    // the correct amount at the end
-    char *working_root = working_str;
-
-    // Tokenize the input stringswith whitespace used as the delimiter
-    while ( ( (arg_ptr = strsep(&working_str, WHITESPACE ) ) != NULL) && 
-              (token_count<MAX_NUM_ARGUMENTS))
+    int i = 0;
+    for(i = 0; i < 127; i++)
     {
-      token[token_count] = strndup( arg_ptr, MAX_COMMAND_SIZE );
-      if( strlen( token[token_count] ) == 0 )
-      {
-        token[token_count] = NULL;
-      }
-        token_count++;
+        
+        
     }
+    
+    return;
+    
+}
 
-    // Now print the tokenized input as a debug check
-    // \TODO Remove this code and replace with your shell functionality
+//**********************************************************************
+//This function is called when user types "df"
+//This function is used in the put() as well
+int df()
+{
+	int count = 0;
+	int i = 0;
+	
+	for(i = 126; i < 4226; i++)
+	{
+		if(used_blocks[i] == 0)
+		{
+			count++;
+		}
+	}
+	printf("df:count = %d\n", count);
+    printf("BLOCK_SIZE = %d\n", BLOCK_SIZE);
+	return count*BLOCK_SIZE;
+	
+}
 
-    int token_index  = 0;
-    for( token_index = 0; token_index < token_count; token_index ++ ) 
+
+//**********************************************************************	
+int findFreeInodeBlockEntry(int inode_index)//need to write smarter version (52:32)
+{
+	int i;
+	int retval = -1;
+	for(i = 0; i < 32; i++)
+	{
+		if(inode_array_ptr[inode_index]->blocks[i] == -1)
+		{
+			retval = i;
+			break;
+		}
+		
+	}
+	return retval;
+
+}
+//**********************************************************************
+
+void init()
+{
+	int i; 
+
+	directory_ptr = (struct directory_entry*) &data_blocks[0];
+	
+	for(i = 0; i < NUM_FILES; i++)
+	{
+		directory_ptr[i].valid = 0;
+	}
+	
+	int inode_idx = 0;
+	for(i = 1; i < 126; i++)
+	{
+		inode_array_ptr[inode_idx++] = (struct inode*) &data_blocks[i];
+	}
+}
+
+//**********************************************************************
+int findFreeDirectoryEntry()//Find inode that is free
+{
+    printf("Beginning findFreeDirectoryEntry()\n");
+	int i;
+	int retval = -1;
+    printf("findFreeDirectoryEntry: retval = %d\n", retval);
+    
+	for(i = 0; i < 125; i++)
+	{
+		if(directory_ptr[i].valid == 0)//inode is not being used
+		{
+			retval = i;
+			break;
+		}
+	}
+	return retval;
+}
+
+//**********************************************************************
+int findFreeInode()
+{
+	int i;
+	 int retval = -1; 
+	 for(i = 0; i < 125; i++)
+	 {
+		 if(inode_array_ptr[i]->valid ==0)
+		 {
+			 retval = i;
+			 break;
+		 }
+	 }
+	 
+	 return retval;
+}
+//**********************************************************************
+int findFreeBlock()
+{
+	
+	int retval = -1;
+	int i = 0;
+	for(i = 126; i < 4226; i++)
+	{
+		if(used_blocks[i] == 0)
+		{
+			retval = i;
+			break;
+		}
+		
+	}
+	
+	return retval;
+	
+}
+
+//**********************************************************************
+void put(char* filename)
+{
+	//put() starts here
+	printf("Beginning put()\n");
+	struct stat buf;
+    
+	//..................................................................
+    printf("put(): Error: File not found\n");
+	int status = stat(filename, &buf);
+	if(status == -1)
+	{
+		printf("Error: File not found \n");
+		return;
+	}
+    
+	//..................................................................
+    printf("put(): Error: Not enough room in the file system (1)\n");
+    if(buf.st_size > df())
     {
-      ///printf("token[%d] = %s\n", token_index, token[token_index] );
-      
-      if(token[token_index] != NULL)
-      {
-        int result;
-
-        // if exit
-          // use break
-        char strexit[] = "exit";
-        result = strcmp(token[token_index], strexit);
-        if(result == 0)
-        {
-          run = 0;
-        }
-        // if copy command
-        char strcopy[] = "copy";
-        result = strcmp(token[token_index], strcopy);
-        if(result == 0)
-        {
-
-          // Verify there are enough parameters passed to run the program.  This program should have
-          // an argc count of 3.  argv[0] = program name, argv[1] = file to copy from, 
-          // argv[2] = file to copy to.  If there aren't exactly three parameters then dump out a 
-          // message and return. 
-          if( token_count != 4 ) {
-            printf("Incorrect number of parameters. \nUse: \n	copy filein fileout\n");
-          } 
-
-          //*********************************************************************************
-          //
-          // The following chunk of code demonstrates similar functionality of your put command
-          //
-
-          
-
-          // Call stat with our input filename to verify that the file exists.  It will also 
-          // allow us to get the file size. We also get interesting file system info about the
-          // file such as inode number, block size, and number of blocks.  For now, we don't 
-          // care about anything but the filesize.
-          status =  stat( token[1], &buf ); 
-
-          // If stat did not return -1 then we know the input file exists and we can use it.
-          if( status != -1 )
-          {
-            copy(token[1], token[2]);
-          }
-          else
-          {
-            printf("Unable to open file: %s\n", token[1] );
-            perror("Opening the input file returned: ");
-          }
-        }
-      }
+        printf("Error: Not enough room in the file system (1) \n");
+        return;
     }
-    free( working_root );
-  }
+    
+	//..................................................................
+    printf("put(): Just before int dir_idx = findFreeDirectoryEntry()\n");
+    int dir_idx = findFreeDirectoryEntry();
+    printf("put(): Just before: Error: Not enough room in the file system (2)\n");
+    if(dir_idx == -1)
+    {
+        printf("Error: Not enough room in the file system (2)\n");
+        return;
+    }
+    
+	//..................................................................
+	printf("put(): after first three Error checks: just before directory_ptr[] statements\n");
+	directory_ptr[dir_idx].valid = 1;//we are using it; marked as being used
+    printf("put(): directory_ptr[dir_idx].valid = %d\n", directory_ptr[dir_idx].valid);
+	
+	directory_ptr[dir_idx].name = (char*) malloc(strlen(filename));
+	printf("put(): directory_ptr[dir_idx].name = %s\n", directory_ptr[dir_idx].name);
+    
+	strncpy(directory_ptr[dir_idx].name, filename, strlen(filename));
+    printf("put(): directory_ptr[dir_idx].name = %s\n", directory_ptr[dir_idx].name);
+
+	int inode_idx = findFreeInode();
+	
+	if(inode_idx == -1)
+	{
+		printf("Error: No free inodes\n");
+		return;
+	}
+	
+	directory_ptr[dir_idx].inode_idx = inode_idx;
+	
+	
+	
+	inode_array_ptr[inode_idx]->size = buf.st_size;
+	inode_array_ptr[inode_idx]->date = time(NULL);
+	inode_array_ptr[inode_idx]->valid = 1;
+	//Open the input file read-only
+    printf("put(): open %s for reading\n", filename);
+	FILE* ifp = fopen(filename, "r");
+	
+	
+	int copy_size = buf.st_size;//set copy_size to be size of the file
+	int offset = 0;//the first time we want to read those bytes
+	
+	//..................................................................
+/*		
+	int block_index = findFreeBlock();
+
+	if(block_index == -1)
+	{
+		printf("Error: Can't find free block\n");
+		//Cleanup a bunch of directory and inode stuff (optional)
+		return;
+	}
+*/
+	//..................................................................
+    
+	while(copy_size >= BLOCK_SIZE)
+	{
+		int block_index = findFreeBlock();
+		
+		if(block_index == -1)
+		{
+			printf("Error: Can't find free block\n");
+			//cleanup a bunch of directory and inode stuff
+			return;
+		}
+		
+		used_blocks[block_index] = 1;
+		
+		int inode_block_entry = findFreeInodeBlockEntry(inode_idx);
+		if(inode_block_entry == -1)
+		{
+			printf("Error: Can't find free node block\n");
+			//cleanup a bunch of directory and inode stuff
+			return;
+		}
+		inode_array_ptr[inode_idx]->blocks[inode_block_entry] = block_index;
+		
+		
+		
+		
+		
+		fseek(ifp, offset, SEEK_SET);
+		
+		int bytes = fread(data_blocks[block_index], BLOCK_SIZE, 1, ifp);//number of bytes read; double check
+		
+		if(bytes == 0 && !feof(ifp))
+		{
+			printf("An error occured reading from the input file.\n");
+			return;
+		};
+		
+		clearerr(ifp);
+		
+		copy_size -= BLOCK_SIZE;
+		offset += BLOCK_SIZE;
+		
+	}
+	
+	if(copy_size > 0)
+	{
+		int block_index = findFreeBlock();
+		
+		if(block_index == -1)
+		{
+			printf("Error: Can't find free block\n");
+			//Cleanup a bunch of directory and inode stuff
+			return;
+		}
+		
+		int inode_block_entry = findFreeInodeBlockEntry(inode_idx);
+		if(inode_block_entry == -1)
+		{
+			printf("Error: Can't find free node block\n");
+			//Cleanup a bunch of directory and inode stuff
+			return;
+		}
+		
+		inode_array_ptr[inode_idx]->blocks[inode_block_entry] = block_index;
+		
+		used_blocks[block_index] = 1;
+		
+		//handle remainder (41 min 19 sec into video)
+		fseek(ifp, offset, SEEK_SET);
+		int bytes = fread(data_blocks[block_index], copy_size, 1, ifp);
+		printf("main:if copy_size > 0: bytes = %d\n", bytes);
+		
+	}
+	
+	fclose(ifp);
+	
+	return;
+}
+	
+	
+//**********************************************************************
+//**********************************************************************
+//**********************************************************************
+//**********************************************************************
+//**********************************************************************	
+//**********************************************************************
+//**********************************************************************
+//**********************************************************************
+//**********************************************************************
+//**********************************************************************
+int main(int argc, char* argv[])
+{
+	init();
+	time_t file_time;
+	file_time = time(NULL);
+	
+	printf("Time as time_t (time in seconds from January 1, 1970): %ld\n", file_time);
+	printf("Time as string; %s\n", ctime(&file_time));
+	
+	printf("%d %s %s\n", 65535, ctime(&file_time), "file.txt");
+    
+    //This is pointer to where the command line input string is stored
+  	char* command_string = (char*) malloc( MAX_COMMAND_SIZE );
+  
+    
+	while( 1 )//continuous input in the bash shell loop
+	{
+		// Print out the msh prompt
+		printf ("mfs>");//print the bash shell prompt
+
+		
+		char* fgetsreturn = fgets (command_string, MAX_COMMAND_SIZE, stdin);
+
+		while( !fgetsreturn );
+		//..................................................................
+		//REQUIREMENT 6
+		//Check for blank line input (Requirement 6)
+		if(command_string[0] == '\n') 
+		{
+			continue;
+		}
+
+		
+		
+		
+		//..................................................................
+		//Separate input into tokens
+		/* Parse input */
+		char* token[MAX_NUM_ARGUMENTS];
+
+		int   token_count = 0;                                 
+															
+		// Pointer to point to the token
+		// parsed by strsep
+		char* argument_ptr;                                         
+															
+		char* working_string  = strdup( command_string );  
+			
+		// we are going to move the working_string pointer so
+		// keep track of its original value so we can deallocate
+		// the correct amount at the end
+		char* head_ptr = working_string;
+
+		// Tokenize the input strings with whitespace used as the delimiter
+		while ( ( (argument_ptr = strsep(&working_string, WHITESPACE ) ) != NULL) && 
+				(token_count<MAX_NUM_ARGUMENTS))
+		{
+		token[token_count] = strndup( argument_ptr, MAX_COMMAND_SIZE );
+		if( strlen( token[token_count] ) == 0 )
+		{
+			token[token_count] = NULL;
+		}
+			token_count++;
+		}
+		
+		//..................................................................
+		//Now print the tokenized input as a debug check
+		//TODO Remove this code and replace with your shell functionality
+
+			//..................................................................
+		//Requirement 5
+		//Check for exit commands "quit" and "exit" 
+		
+		if(strstr(token[0], "exit")!=NULL) 
+			return  0;
+		
+		//if(strcmp("exit", token[0])==0) 
+		if(strstr(token[0], "quit")!=NULL)   
+			return  0;
+		
+		//..................................................................
+
+		//Get current working directory
+		char cwd[256];
+		getcwd(cwd, sizeof(cwd));
+
+		//..................................................................
+		//execute command "df"
+
+		if((strstr(token[0], "df")!=NULL))//call df()
+		{
+
+			int df_return = df();
+			printf("%d bytes free.\n", df_return);//df_return = count*BLOCK_SIZE
+
+		}
+			
+		//..................................................................   
+
+		//execute command "put"
+
+		if((strstr(token[0], "put")!=NULL))//call put()
+		{
+			//char* filename;
+			printf("Call function put()\n");
+			printf("Local file name token[1]= %s\n", token[1]);
+			put(token[1]);
+
+
+		}
+			
+		//..................................................................   
+		
+		
+		free( head_ptr );
+
+	}//while(1) loop
+  
   return 0;
+  
+  // e2520ca2-76f3-11ec-90d6-0242ac120003
 }
