@@ -190,11 +190,11 @@ int findDirectoryIndex(char* filename)
 2.7.1 If the file is not found a message shall be printed
 	open: File not found
 */
-void open(char* filename)
+//**********************************************************************
+void openFS(char* filename)
 {
-    init();
   
-  //Open the input file read-only
+ 	//Open the input file read-only
 	printf("open(): open %s for reading\n", filename);
 	FILE* ifp = fopen(filename, "r");
 	printf("open: after FILE* ifp = fopen(): ifp = %p\n", ifp);
@@ -208,10 +208,31 @@ void open(char* filename)
 }
 
 //**********************************************************************
-/*
-2.8 The save command
-	The save command shall write the file system to disk.
-*/
+
+int del(char* filename)
+{   
+    int i = 0;
+    int dir_idx = 0;
+    int inode_idx = 0;
+    //int check = 0;
+    int inode_offset = 5;
+    for(i = 0; i < 125; i++)
+    {
+      if(strcmp(directory_ptr[i+inode_offset].name, filename))
+      {
+		dir_idx = i;
+		inode_idx = i+5;
+		
+		directory_ptr[dir_idx+inode_offset].valid = 0;
+		inode_array_ptr[inode_idx]->valid = 0;
+		//printf("del: inside  for loop: inside if statement: directory_ptr[%d].valid = %d\n",i, directory_ptr[dir_idx+inode_offset].valid);
+		//printf("del: inside  for loop: inside if statement: inode_array_ptr[%d]->valid = %d\n",i,  inode_array_ptr[inode_idx]->valid);
+		return 1;
+      }
+    }
+    return -1;
+    
+}
 
 
 
@@ -220,34 +241,20 @@ void open(char* filename)
 void listImageFiles()
 {
     //printf("\nBeginning listImageFiles()\n");
-    int i = 0;
-    //for(i = 0; i < 127; i++)
-    
-    	time_t file_time;
-	
-	file_time = time(NULL);
-	
-	printf("Time as time_t (time in seconds from January 1, 1970): %ld\n", file_time);
-	printf("Time as string; %s\n", ctime(&file_time));
-	
-	//printf("%d %s %s\n", 65535, ctime(&file_time), "file.txt");
+    int i;
+
      
-    
+	int inode_offset = 5;
 	for(i = 0; i < 125; i++)
 	{
-		if(directory_ptr[i].valid != 0)//inode is not being used
+	  //printf("listImageFiles: inside for loop: i = %d\n", i);
+		if(directory_ptr[i+inode_offset].valid != 0)//inode is not being used
 		{
-		      printf("listImageFiles: inside if statement\n");
-		      printf("listImageFiles: i = %d\n", i);
-		      //printf("listImageFiles: directory_ptr[%d].name = %s\n", i, directory_ptr[i].name);
-		      //printf("File name %d = %s\n", i, directory_ptr[i].name);
+		      printf("%d %s %s \n", inode_array_ptr[i+5]->size, ctime(&inode_array_ptr[i+5]->date), directory_ptr[i].name);
+		      int length = strlen(directory_ptr[i].name);
+		      printf("listImageFiles: at end of if statement: length = %d\n", length);
 		      
-		      //printf("%d %s %s\n", inode_array_ptr[i].size, ctime(&file_time), "file.txt");
-		      printf("%s\n", ctime(&file_time));
-		      //printf("%d\n", inode_array_ptr[i]->size);
 
-		      printf("%s\n", directory_ptr[i].name);
-		      printf("%d %lu %s\n", inode_array_ptr[i]->size , inode_array_ptr[i]->date, directory_ptr[i].name);
 		}
 	}
 	//printf("Ending findFreeDirectoryEntry()\n\n");
@@ -346,7 +353,6 @@ int findFreeBlock()
 }
 
 
-
 //**********************************************************************
 void put(char* filename)
 {
@@ -408,9 +414,6 @@ void put(char* filename)
 	
 	//Open the input file read-only
 	FILE* ifp = fopen(filename, "r");
-	
-
-	
 	
 	int copy_size = buf.st_size;//set copy_size to be size of the file
 	int offset = 0;//the first time we want to read those bytes
@@ -515,7 +518,7 @@ void put(char* filename)
 */
 
 //**********************************************************************
-void get(char* filename_read, char* filename_write)
+void getTWO(char* filename_read, char* filename_write)
 {
 
 	// Now, open the output file that we are going to write the data to.
@@ -591,49 +594,85 @@ void get(char* filename_read, char* filename_write)
     }
 	return;
 }
-
-void openFS(char* filename)
-{
-  
- 	//Open the input file read-only
-	printf("open(): open %s for reading\n", filename);
-	FILE* ifp = fopen(filename, "r");
-	printf("open: after FILE* ifp = fopen(): ifp = %p\n", ifp);
-	
-	//fread(&data_blocks[0], 8192*4226, 1, ifp);
-	fread(&data_blocks[0], 8192*4096, 1, ifp);
-	
-    printf("\nEnding open()\n\n");
-    return;
-    
-}
-
 //**********************************************************************
+void getONE(char* filename )
+{
 
-int del(char* filename)
-{   
-    int i = 0;
-    int dir_idx = 0;
-    int inode_idx = 0;
-    //int check = 0;
-    int inode_offset = 5;
-    for(i = 0; i < 125; i++)
+	// Now, open the output file that we are going to write the data to.
+    FILE *ofp;
+    ofp = fopen(filename, "w");
+
+    if( ofp == NULL )
     {
-      if(strcmp(directory_ptr[i+inode_offset].name, filename))
-      {
-		dir_idx = i;
-		inode_idx = i+5;
-		
-		directory_ptr[dir_idx+inode_offset].valid = 0;
-		inode_array_ptr[inode_idx]->valid = 0;
-		//printf("del: inside  for loop: inside if statement: directory_ptr[%d].valid = %d\n",i, directory_ptr[dir_idx+inode_offset].valid);
-		//printf("del: inside  for loop: inside if statement: inode_array_ptr[%d]->valid = %d\n",i,  inode_array_ptr[inode_idx]->valid);
-		return 1;
-      }
+      printf("Could not open output file: %s\n", filename );
+      perror("Opening output file returned\n");
+      return;
     }
-    return -1;
-    
+
+	// obtain the pointer for the file within the file system
+	// Find the dir_idx in directory_ptr associated with filename
+	
+	// if the file is not found
+	int dir_idx = findDirectoryIndex(filename);
+	if( dir_idx == -1)
+	{
+		printf("Error: File not found\n");
+		return;
+	}
+
+	// Withdraw the inode_idx element stored within the directory_ptr struct at dir_idx
+	int inode_idx = directory_ptr[dir_idx].inode_idx;
+
+	
+    // Initialize our offsets and pointers just we did above when reading from the file.
+    int block_index = inode_array_ptr[inode_idx]->blocks[0];
+    int copy_size   = inode_array_ptr[inode_idx]->size;
+    int offset      = 0;
+
+    printf("Writing %d bytes to %s\n", (int)copy_size, filename );
+
+    // Using copy_size as a count to determine when we've copied enough bytes to the output file.
+    // Each time through the loop, except the last time, we will copy BLOCK_SIZE number of bytes from
+    // our stored data to the file fp, then we will increment the offset into the file we are writing to.
+    // On the last iteration of the loop, instead of copying BLOCK_SIZE number of bytes we just copy
+    // how ever much is remaining ( copy_size % BLOCK_SIZE ).  If we just copied BLOCK_SIZE on the
+    // last iteration we'd end up with gibberish at the end of our file. 
+
+    while( copy_size > 0 )
+    { 
+
+      int num_bytes;
+
+      // If the remaining number of bytes we need to copy is less than BLOCK_SIZE then
+      // only copy the amount that remains. If we copied BLOCK_SIZE number of bytes we'd
+      // end up with garbage at the end of the file.
+      if( copy_size < BLOCK_SIZE )
+      {
+        num_bytes = copy_size;
+      }
+      else 
+      {
+        num_bytes = BLOCK_SIZE;
+      }
+
+
+      // Write num_bytes number of bytes from our data array into our output file.
+      fwrite( data_blocks[block_index], BLOCK_SIZE, 1, ofp ); 
+
+      // Reduce the amount of bytes remaining to copy, increase the offset into the file
+      // and increment the block_index to move us to the next data block.
+      copy_size -= BLOCK_SIZE;
+      offset    += BLOCK_SIZE;
+      block_index ++;
+
+      // Since we've copied from the point pointed to by our current file pointer, increment
+      // offset number of bytes so we will be ready to copy to the next area of our output file.
+      fseek( ofp, offset, SEEK_SET );
+    }
+	return;
 }
+
+
 	
 //**********************************************************************
 //**********************************************************************
@@ -744,12 +783,14 @@ int main(int argc, char* argv[])
 
 		//execute command "get"
 
-		if((strstr(token[0], "get")!=NULL) && strstr(token[1], "")!=NULL && strstr(token[2], "")!=NULL)//call put()
+		if((strstr(token[0], "get")!=NULL) && strstr(token[1], "")!=NULL && strstr(token[2], "")!=NULL )//call put()
 		{
-		
-			//char* filename;
-			int token_length = strlen(token[1]);
-			get(token[1], token[2]);
+			getTWO(token[1], token[2]);	
+		}
+
+		if((strstr(token[0], "get")!=NULL) && strstr(token[1], "")!=NULL && strstr(token[2], "")==NULL )//call put()
+		{
+			getONE(token[1]);	
 		}
 			
 
@@ -840,11 +881,12 @@ int main(int argc, char* argv[])
 
 //
 
-// File System Requiremments: 0/14
+// File System Requiremments: 8/14
 
 /*
-1.1 Your Program will print out a prompt of mfs> when it is ready to accept input
-1.2 The following commands shall be supported:
+COMPLETE 1.1 Your Program will print out a prompt of mfs> when it is ready to accept input
+
+### 1.2 The following commands shall be supported:
 	put
 	get
 	get
@@ -859,58 +901,56 @@ int main(int argc, char* argv[])
 	attrib
 	quit
 
-1.3 Your program will be allocating 4226 blocks for the file system.
+COMPLETE 1.3 Your program will be allocating 4226 blocks for the file system.
 
-1.4 The file system shall support files up to 10,240,000 bytes in size.
+### 1.4 The file system shall support files up to 10,240,000 bytes in size.
 
-1.5 The file system shall support up to 125 files
+COMPLETE 1.5 The file system shall support up to 125 files
 
-1.6 The file system block size shall be 8192 bytes.
+COMPLETE 1.6 The file system block size shall be 8192 bytes.
 
-1.7 The file system shall use an indexed allocation scheme.
+COMPLETE 1.7 The file system shall use an indexed allocation scheme.
 
-1.8 The file system shall support file names of up to 32 characters.
+COMPLETE 1.8 The file system shall support file names of up to 32 characters.
 
-1.9 Supported file names shall only be alphanumeric with ".".
+### 1.9 Supported file names shall only be alphanumeric with ".".
 	There shall be no restriction to how many characters appear before or after the "."
 	There shall be support for files without a "."
 
 
-1.10 The file system shall store the directory in the first two(blocks 0-1) disk blocks
+### 1.10 The file system shall store the directory in the first two(blocks 0-1) disk blocks
 
-1.11 The file system shall allocate blocks 5-130 for inodes
+COMPLETE 1.11 The file system shall allocate blocks 5-130 for inodes
 
-1.12 The file system shall use block 2 for the free inode map.
+### 1.12 The file system shall use block 2 for the free inode map.
 	Use at most 8 bits for each entry.
 
-1.13 The file system shall use block 3 for the free block map.
+### 1.13 The file system shall use block 3 for the free block map.
 	Use at most 8 bits for each entry.
 
-1.14 The directory structure shall be a single level hierarchy with no subdirectories.
+COMPLETE 1.14 The directory structure shall be a single level hierarchy with no subdirectories.
 */
 
 
 // Command Requirements 0/10
 
 /*
-2.1 The put command shall alow the user to put a new file into the file system
-2.1.1 The command shall take the form:
-	put <filename>
+COMPLETE	2.1 The put command shall alow the user to put a new file into the file system
+			2.1.1 The command shall take the form:
+				put <filename>
+			2.1.2 If the filename is too long 
+				put error: File name too long.
+			2.1.3 If there is not enough disk space for the file an error will be returned stating:
+				put error: Not enough disk space.
 
-2.1.2 If the filename is too long 
-	put error: File name too long.
-
-2.1.3 If there is not enough disk space for the file an error will be returned stating:
-	put error: Not enough disk space.
-
-2.2 The get command shall allow the user to retrieve a file from the file system and place it in the current working directory.
-2.2.1 The command shall take the form:
-	get <filename>
-	and
-	get <filename> <newfilename>
-2.2.2 If no new filename is specified the get shall copy the file to the current working directory using the old filename.
-2.2.3 If the file does not exist in the file system an error will be printed that states: 
-	get error: File not found.
+COMPLETE 	2.2 The get command shall allow the user to retrieve a file from the file system and place it in the current working directory.
+			2.2.1 The command shall take the form:
+				get <filename>
+				and
+				get <filename> <newfilename>
+			2.2.2 If no new filename is specified the get shall copy the file to the current working directory using the old filename.
+			2.2.3 If the file does not exist in the file system an error will be printed that states: 
+			get error: File not found.
 
 2.3 The del command shall allow the user to delete a file from the file system
 2.3.2 If the file does exist in the file system it shall be deleted and all the space available for additional files.
