@@ -13,7 +13,7 @@ CSE3320-002
 Fall 2022
 Programming Assignment 4: File System
 Assigned: November 14, 2022
-Due: Wednesday, November 30, 2022 by 5:30 PM CST
+Due: December 2 2022 5:30 PM CST
 */
 
 
@@ -87,6 +87,8 @@ struct directory_entry{
 	int valid;
 	int inode_idx;
 	int deleted;
+	int hidden;
+	int read_only;
 };
 
 //......................................................................
@@ -100,8 +102,6 @@ struct inode{
 	int valid;
 	int size;
 	int blocks[MAX_BLOCKS_PER_FILE];
-	int hidden;
-	int read_only;
 };
 
 //......................................................................
@@ -124,6 +124,8 @@ void init()
 		directory_ptr[i].valid = 0;
 		directory_ptr[i].inode_idx = 0;
 		directory_ptr[i].deleted = 0;
+		directory_ptr[i].hidden = 0;
+		directory_ptr[i].read_only = 0;
 		
 	}
 	
@@ -153,6 +155,9 @@ void printDirectory()
 		printf("directory_ptr[%d].name 		= %s\n", i, directory_ptr[i].name);
 		printf("directory_ptr[%d].valid 		= %d\n", i, directory_ptr[i].valid);
 		printf("directory_ptr[%d].inode_idx	= %d\n", i, directory_ptr[i].inode_idx);
+		printf("directory_ptr[%d].deleted	= %d\n", i, directory_ptr[i].deleted);
+		printf("directory_ptr[%d].hidden	= %d\n", i, directory_ptr[i].hidden);
+		printf("directory_ptr[%d].read_only	= %d\n", i, directory_ptr[i].read_only);
 
 	}
 }
@@ -312,7 +317,14 @@ int findFreeBlock()
 	return retval;
 }
 
-
+/*
+2.1 The put command shall alow the user to put a new file into the file system
+			2.1.1 The command shall take the form:
+				put <filename>
+			2.1.2 If the filename is too long 
+				put error: File name too long.
+			2.1.3 If there is not enough disk space for the file an error will be returned stating:
+				put error: Not enough disk space.*/
 //**********************************************************************
 void put(char* filename)
 {
@@ -554,6 +566,16 @@ void getTWO(char* filename_read, char* filename_write)
     }
 	return;
 }
+
+/*
+2.2 The get command shall allow the user to retrieve a file from the file system and place it in the current working directory.
+			2.2.1 The command shall take the form:
+				get <filename>
+				and
+				get <filename> <newfilename>
+			2.2.2 If no new filename is specified the get shall copy the file to the current working directory using the old filename.
+			2.2.3 If the file does not exist in the file system an error will be printed that states: 
+			get error: File not found.*/
 //**********************************************************************
 void getONE(char* filename )
 {
@@ -641,7 +663,7 @@ void listImageFiles()
 	int num_files = 0;
 	for(i = 0; i < NUM_FILES; i++)
 	{	
-		if(directory_ptr[i].valid != 0)
+		if(directory_ptr[i].valid != 0 && directory_ptr[i].hidden == 0)
 		{
 			
 			num_files++;
@@ -657,26 +679,9 @@ void listImageFiles()
 
 //**********************************************************************
 
-/*
-//......................................................................
-struct directory_entry{
-	char* name;
-	int valid;
-	int inode_idx;
-};
-
-//......................................................................
-
-struct directory_entry* directory_ptr;//pointer to directory_entry struct
-
-//......................................................................
-
-struct inode{
-	time_t date;
-	int valid;
-	int size;
-	int blocks[MAX_BLOCKS_PER_FILE];
-};*/
+/*2.3 The del command shall allow the user to delete a file from the file system
+2.3.2 If the file does exist in the file system it shall be deleted and all the space available for additional files.
+del error: File not found.*/
 void del(char* filename)
 {   
     int dir_idx = -1;
@@ -730,7 +735,6 @@ void del(char* filename)
 void undel(char *filename)
 {
 	int i;
-	int num_files = 0;
 	int flag = -1;
 	for(i = 0; i < NUM_FILES; i++)
 	{	
@@ -751,6 +755,70 @@ void undel(char *filename)
 	{
 		printf("Can not find the file.\n");
 	}
+}
+/*
+2.9 The attrib command
+		The attrib command sets or removes an attribute from the file.
+	2.9.1 Valid attributes are:
+		h
+		r
+	2.9.2 To set the attribute on the file the attribute tag is given with a +, ex:
+		attrib +h foo.txt
+	2.9.3 To remove the attribute on the file the attribute tag is given with a -, ex:
+		attrib -h foo.txt
+	2.9.4 If the file is not found a message shall be printed:
+		attrib: File not found
+*/
+void attrib(char* tag, char* filename)
+{
+	int i;
+	int found = 0;
+	int flag = -1;
+	char sign = tag[0];
+	char attribute = tag[1];
+	for(i = 0; i < NUM_FILES; i++)
+	{	
+		if(directory_ptr[i].name != NULL)
+		{
+			flag = strcmp(directory_ptr[i].name, filename);
+			if(flag == 0)
+			{
+				found = 1;
+				
+				if(sign == '+')
+				{
+					if(attribute == 'h')
+					{
+						directory_ptr[i].hidden = 1;
+					}
+					else if(attribute == 'r')
+					{
+						directory_ptr[i].read_only = 1;
+					}
+				}
+
+				if(sign == '0')
+				{
+					if(attribute == 'h')
+					{
+						directory_ptr[i].hidden = 0;
+					}
+					else if(attribute == 'r')
+					{
+						directory_ptr[i].read_only = 0;
+					}
+				}
+				
+				
+			}
+		}
+		
+	} 
+	if(found == 0)
+	{
+		printf("File not found.\n");
+	}
+
 }
 
 
@@ -983,6 +1051,15 @@ int main(int argc, char* argv[])
 			int token_length = strlen(token[1]);
 			findDirectoryIndex(token[1]);
 		}
+
+		//..................................................................   
+		
+			//execute command "attribute"
+
+		if((strstr(token[0], "attrib")!=NULL) && strstr(token[1], "")!=NULL && strstr(token[2], "")!=NULL)//call put()
+		{
+			attrib(token[1], token[2]);
+		}
 			
 
 
@@ -1049,7 +1126,7 @@ COMPLETE 1.14 The directory structure shall be a single level hierarchy with no 
 */
 
 
-// Command Requirements 0/10
+// Command Requirements 6/10
 
 /*
 COMPLETE	2.1 The put command shall alow the user to put a new file into the file system
@@ -1073,10 +1150,10 @@ COMPLETE 	2.3 The del command shall allow the user to delete a file from the fil
 			2.3.2 If the file does exist in the file system it shall be deleted and all the space available for additional files.
 				del error: File not found.
 
-2.4 The undel command - the undel command shall allow the user to undelete a file that has been deleted from the file system.
-2.4.2 If the file does exist in the file system direcory and marked deleted it shall be undeleted.
-2.4.3 If the file is not found in the directory then the following shall be printed:
-	undel: Can not find the file
+COMPLETE 	2.4 The undel command - the undel command shall allow the user to undelete a file that has been deleted from the file system.
+			2.4.2 If the file does exist in the file system direcory and marked deleted it shall be undeleted.
+			2.4.3 If the file is not found in the directory then the following shall be printed:
+				undel: Can not find the file
 
 COMPLETE	2.5	The list command shall display 
 				all the files in the file system
