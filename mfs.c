@@ -656,11 +656,14 @@ void listImageFiles()
 	{	
 		if(directory_ptr[i].name != NULL)
 		{
+			
 			num_files++;
+			/*
 			if(num_files == 1)
 			{
 				printf("Name\tSize\tDate\n");
 			}
+			*/
 			int inode_idx = directory_ptr[i].inode_idx;
 			printf("%s\t%d\t%s", directory_ptr[i].name, inode_array_ptr[inode_idx]->size, ctime(&inode_array_ptr[inode_idx]->date));
 		}
