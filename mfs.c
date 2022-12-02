@@ -749,7 +749,7 @@ void undel(char *filename)
 	} 
 	if(flag != 0)
 	{
-		printf("No files found.\n");
+		printf("Can not find the file.\n");
 	}
 }
 
