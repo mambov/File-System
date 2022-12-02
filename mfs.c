@@ -92,6 +92,8 @@ struct inode{
 	int blocks[MAX_BLOCKS_PER_FILE];
 };
 
+
+
 //......................................................................
 
 struct inode* inode_array_ptr[NUM_INODES];
@@ -100,7 +102,6 @@ struct inode* inode_array_ptr[NUM_INODES];
 
 void init()
 {
-	printf("\nBeginning init()\n");
 	
 	//..............................................................
 	int i; 
@@ -113,32 +114,79 @@ void init()
 		directory_ptr[i].valid = 0;
 		directory_ptr[i].inode_idx = 0;
 		
-	//char* name;
-	//int valid;
-	//int inode_idx;
-		
-		
-		
 	}
 	
 	//..............................................................
-	int inode_idx = 1;
+	int inode_idx = 0;
 	//for(i = 5; i <= 130; i++)
 	for(i = 1; i < 126; i++)
 	{
 		inode_array_ptr[inode_idx++] = (struct inode*) &data_blocks[i];
-		printf("init: inside second for loop: i = %d\n", i);
-		//printf("init: inode_array_ptr[%d] = %p", inode_idx++, inode_array_ptr[inode_idx++]);
 	}
 	//..............................................................
-	printf("\nEnding init()\n\n");
+
+	for(i = 0; i < NUM_BLOCKS; i++)
+	{
+		used_blocks[i] = 0;
+	}
+
+
 }
+
+	
+void printDirectory()
+{
+	int i;
+	for(i = 0; i < NUM_FILES; i++)
+	{
+		printf("directory_ptr[%d].name 		= %s\n", i, directory_ptr[i].name);
+		printf("directory_ptr[%d].valid 		= %d\n", i, directory_ptr[i].valid);
+		printf("directory_ptr[%d].inode_idx	= %d\n", i, directory_ptr[i].inode_idx);
+
+	}
+}
+
+void printInode()
+{
+	int i;
+	int inode_idx = 0;
+	for(i = 0; i < 125; i++)
+	{
+		printf("inode_array_ptr[%d]->date 	= %ld\n", i, inode_array_ptr[i]->date);
+		printf("inode_array_ptr[%d]->valid 	= %d\n", i, inode_array_ptr[i]->valid);
+		printf("inode_array_ptr[%d]->size 	= %d\n", i, inode_array_ptr[i]->size);
+		printf("inode_array_ptr[%d]->blocks[0]	= %d\n", i, inode_array_ptr[i]->blocks[0]);
+		//printf("inode_idx = %d\n", inode_idx);
+	}
+
+}
+
+int findDirectoryIndex(char* filename)
+{
+	int dir_idx = -1;
+	int i;
+	int flag;
+	for(i = 0; i < NUM_FILES; i++)
+	{
+		if(directory_ptr[i].name != NULL)
+		{
+			flag = strcmp(directory_ptr[i].name, filename);
+			if(flag == 0)
+			{
+
+				dir_idx = i;
+			}
+		}
+	}
+	return dir_idx;
+}
+
+
 
 //**********************************************************************
 
 void open(char* filename)
 {
-    printf("\nBeginning open()\n");
     init();
   
   //Open the input file read-only
@@ -201,7 +249,6 @@ void listImageFiles()
 //This function is used in the put() as well
 int df()
 {
-	printf("\nBeginning df()\n");
 	int count = 0;
 	int i = 0;
 	
@@ -213,9 +260,6 @@ int df()
 			count++;
 		}
 	}
-	printf("df:count = %d\n", count);
-    printf("BLOCK_SIZE = %d\n", BLOCK_SIZE);
-    printf("Ending df()\n\n");
 	return count*BLOCK_SIZE;
 	
 }
@@ -223,7 +267,6 @@ int df()
 //**********************************************************************	
 int findFreeInodeBlockEntry(int inode_index)//need to write smarter version (52:32)
 {
-  	printf("\nBeginning findFreeInodeBlockEntry\n");
 	int i;
 	int retval = 0;
 	for(i = 0; i < 32; i++)
@@ -235,7 +278,6 @@ int findFreeInodeBlockEntry(int inode_index)//need to write smarter version (52:
 		}
 		
 	}
-	printf("Ending findFreeInodeBlockEntry\n\n");
 	return retval;
 
 }
@@ -243,11 +285,9 @@ int findFreeInodeBlockEntry(int inode_index)//need to write smarter version (52:
 //**********************************************************************
 int findFreeDirectoryEntry()//Find inode that is free
 {
-    printf("\nBeginning findFreeDirectoryEntry()\n");
 	int i;
 	//int retval = -1;
 	int retval = 0;
-    printf("findFreeDirectoryEntry: retval = %d\n", retval);
     
 	for(i = 0; i < 125; i++)
 	{
@@ -257,39 +297,31 @@ int findFreeDirectoryEntry()//Find inode that is free
 			break;
 		}
 	}
-	printf("Ending findFreeDirectoryEntry()\n\n");
 	return retval;
 }
 
 //**********************************************************************
 int findFreeInode()
 {
-	printf("\nBeginning findFreeInode\n");
 	int i;
 	//int retval = -1;
 	int retval = 0;
 	 //for(i = 0; i < 125; i++)
-	 for(i = 1; i < 126; i++)
+	 for(i = 0; i < 125; i++)
 	 {
-	   printf("findFreeInode: inside for loop: inode_array_ptr[%d]->valid = %d\n",i, inode_array_ptr[i]->valid);
 		 if(inode_array_ptr[i]->valid ==0)
 		 {
 			 retval = i;
 			 break;
 		 }
 	 }
-	 printf("findFreeInode: just before return retval: retval = %d\n", retval);
-	 printf("End findFreeInode\n\n");
 	 return retval;
 }
 //**********************************************************************
 int findFreeBlock()
 {
-	printf("Beginning findFreeBlock()\n");
-	//int retval = -1;
 	int retval = 0;
 	int i = 0;
-	//for(i = 130; i < 4226; i++)
 	for(i = 130; i < 4226; i++)
 	{
 		if(used_blocks[i] == 0)
@@ -299,103 +331,20 @@ int findFreeBlock()
 		}
 		
 	}
-	
 	return retval;
-	
-	printf("End findFreeBlock()\n\n");
 }
 
-//**********************************************************************
-void get(char* filename)
-{
-	struct stat buf;
-    
-	//..................................................................
-    printf("put(): Error: File not found\n");
-	int status = stat(filename, &buf);
-	if(status == -1)//????????????????????????????????????????????????????????????
-	//if(status == 0)
-	{
-		printf("Error: File not found \n");
-		return;
-	}
-	//*********************************************************************************
-    //
-    // The following chunk of code demonstrates similar functionality to your get command
-    //
 
-    // Now, open the output file that we are going to write the data to.
-    FILE *ofp;
-    ofp = fopen(filename, "w");
-
-    if( ofp == NULL )
-    {
-      printf("Could not open output file: %s\n", filename );
-      perror("Opening output file returned");
-      return;
-    }
-
-    // Initialize our offsets and pointers just we did above when reading from the file.
-    int block_index = 0;
-    int copy_size   = buf.st_size;
-    int offset      = 0;
-
-    printf("Writing %d bytes to %s\n", (int) buf . st_size, filename );
-
-    // Using copy_size as a count to determine when we've copied enough bytes to the output file.
-    // Each time through the loop, except the last time, we will copy BLOCK_SIZE number of bytes from
-    // our stored data to the file fp, then we will increment the offset into the file we are writing to.
-    // On the last iteration of the loop, instead of copying BLOCK_SIZE number of bytes we just copy
-    // how ever much is remaining ( copy_size % BLOCK_SIZE ).  If we just copied BLOCK_SIZE on the
-    // last iteration we'd end up with gibberish at the end of our file. 
-    while( copy_size > 0 )
-    { 
-
-      int num_bytes;
-
-      // If the remaining number of bytes we need to copy is less than BLOCK_SIZE then
-      // only copy the amount that remains. If we copied BLOCK_SIZE number of bytes we'd
-      // end up with garbage at the end of the file.
-      if( copy_size < BLOCK_SIZE )
-      {
-        num_bytes = copy_size;
-      }
-      else 
-      {
-        num_bytes = BLOCK_SIZE;
-      }
-
-      // Write num_bytes number of bytes from our data array into our output file.
-      fwrite( data_blocks[block_index], BLOCK_SIZE, 1, ofp ); 
-
-      // Reduce the amount of bytes remaining to copy, increase the offset into the file
-      // and increment the block_index to move us to the next data block.
-      copy_size -= BLOCK_SIZE;
-      offset    += BLOCK_SIZE;
-      block_index ++;
-
-      // Since we've copied from the point pointed to by our current file pointer, increment
-      // offset number of bytes so we will be ready to copy to the next area of our output file.
-      fseek( ofp, offset, SEEK_SET );
-    }
-
-    // Close the output file, we're done. 
-    fclose( ofp );
-	
-	return;
-}
 
 //**********************************************************************
 void put(char* filename)
 {
 	//put() starts here
-	printf("Beginning put()\n");
 	struct stat buf;
 	
 	//..................................................................
 	//Check to see if file name exceeds 32 characters
 	int file_name_length = strlen(filename);
-	printf("put: file_name_length = %d\n", file_name_length);
 	if(file_name_length > 32)
 	{
 	  printf("put error: File name too long.\n");
@@ -403,7 +352,6 @@ void put(char* filename)
 	}
     
 	//..................................................................
-    printf("put(): Error: File not found\n");
 	int status = stat(filename, &buf);
 	if(status == -1)//????????????????????????????????????????????????????????????
 	//if(status == 0)
@@ -413,7 +361,6 @@ void put(char* filename)
 	}
     
 	//..................................................................
-    printf("put(): just before if(buf.st_size > df())\n");
     if(buf.st_size > df())
     {
         printf("Error: Not enough room in the file system (1) \n");
@@ -421,9 +368,7 @@ void put(char* filename)
     }
     
 	//..................................................................
-    printf("put(): Just before int dir_idx = findFreeDirectoryEntry()\n");
     int dir_idx = findFreeDirectoryEntry();
-    printf("put(): Just before: Error: Not enough room in the file system (2)\n");
     if(dir_idx == -1)
     {
         printf("Error: Not enough room in the file system (2)\n");
@@ -431,15 +376,10 @@ void put(char* filename)
     }
     
 	//..................................................................
-	printf("put(): after first three Error checks: just before directory_ptr[] statements\n");
 	directory_ptr[dir_idx].valid = 1;//we are using it; marked as being used
-    printf("put(): directory_ptr[dir_idx].valid = %d\n", directory_ptr[dir_idx].valid);
 	
 	directory_ptr[dir_idx].name = (char*) malloc(strlen(filename));
-	printf("put(): directory_ptr[dir_idx].name = %s\n", directory_ptr[dir_idx].name);
-	printf("strlen(filename) = %d\n", strlen(filename));
 	strncpy(directory_ptr[dir_idx].name, filename, strlen(filename));
-    printf("put(): directory_ptr[dir_idx].name = %s\n", directory_ptr[dir_idx].name);
 
 	int inode_idx = findFreeInode();//Call function findFreeInode()
 	
@@ -448,21 +388,14 @@ void put(char* filename)
 		printf("Error: No free inodes\n");
 		return;
 	}
-	
-	printf("put: just before directory_ptr[dir_idx].inode_idx = inode_idx: inode_idx = %d\n", inode_idx);
 	directory_ptr[dir_idx].inode_idx = inode_idx;
-	
-	
-	
 	inode_array_ptr[inode_idx]->size = buf.st_size;
-	printf("put: inode_array_ptr[inode_idx]->size: %d", inode_array_ptr[inode_idx]->size);
 	inode_array_ptr[inode_idx]->date = time(NULL);
 	inode_array_ptr[inode_idx]->valid = 1;
 	
 	
 	
 	//Open the input file read-only
-	printf("put(): open %s for reading\n", filename);
 	FILE* ifp = fopen(filename, "r");
 	
 
@@ -537,9 +470,7 @@ void put(char* filename)
 			//Cleanup a bunch of directory and inode stuff
 			return;
 		}
-		printf("put: just before int inode_block_entry = findFreeInodeBlockEntry(inode_idx): inode_idx = %d\n", inode_idx);
 		int inode_block_entry = findFreeInodeBlockEntry(inode_idx);
-		printf("put: if(copy_size > 0): inode_block_entry = %d\n", inode_block_entry);
 		if(inode_block_entry == -1)
 		{
 			printf("Error: Can't find free node block(2)\n");
@@ -554,63 +485,142 @@ void put(char* filename)
 		//handle remainder (41 min 19 sec into video)
 		fseek(ifp, offset, SEEK_SET);
 		int bytes = fread(data_blocks[block_index], copy_size, 1, ifp);
-		printf("main:if copy_size > 0: bytes = %d\n", bytes);
-		
 	}
 	
 	fclose(ifp);
 	
 	return;
 }
+
+/*
+2.2 The get command shall allow the user to retrieve a file from the file system and place it in the current working directory.
+2.2.1 The command shall take the form:
+	get <filename>
+	and
+	get <filename> <newfilename>
+2.2.2 If no new filename is specified the get shall copy the file to the current working directory using the old filename.
+2.2.3 If the file does not exist in the file system an error will be printed that states: 
+	get error: File not found.
+*/
+
+//**********************************************************************
+void get(char* filename)
+{
+
+	// Now, open the output file that we are going to write the data to.
+    FILE *ofp;
+    ofp = fopen(filename, "w");
+
+    if( ofp == NULL )
+    {
+      printf("Could not open output file: %s\n", filename );
+      perror("Opening output file returned\n");
+      return;
+    }
+
+	// obtain the pointer for the file within the file system
+	// Find the dir_idx in directory_ptr associated with filename
 	
-void printDirectory()
-{
-	int i;
-	for(i = 0; i < NUM_FILES; i++)
+	// if the file is not found
+	int dir_idx = findDirectoryIndex(filename);
+	if( dir_idx == -1)
 	{
-		printf("directory_ptr[%d].name 		= %s\n", i, directory_ptr[i].name);
-		printf("directory_ptr[%d].valid 		= %d\n", i, directory_ptr[i].valid);
-		printf("directory_ptr[%d].inode_idx	= %d\n", i, directory_ptr[i].inode_idx);
-
+		printf("Error: File not found\n");
+		return;
 	}
+
+	// Withdraw the inode_idx element stored within the directory_ptr struct at dir_idx
+	int inode_idx = directory_ptr[dir_idx].inode_idx;
+
+	
+    // Initialize our offsets and pointers just we did above when reading from the file.
+    int block_index = 0;
+    int copy_size   = inode_array_ptr[inode_idx]->size;
+    int offset      = 0;
+
+    printf("Writing %d bytes to %s\n", (int)copy_size, filename );
+
+    // Using copy_size as a count to determine when we've copied enough bytes to the output file.
+    // Each time through the loop, except the last time, we will copy BLOCK_SIZE number of bytes from
+    // our stored data to the file fp, then we will increment the offset into the file we are writing to.
+    // On the last iteration of the loop, instead of copying BLOCK_SIZE number of bytes we just copy
+    // how ever much is remaining ( copy_size % BLOCK_SIZE ).  If we just copied BLOCK_SIZE on the
+    // last iteration we'd end up with gibberish at the end of our file. 
+	
+    while( copy_size > 0 )
+    { 
+
+      int num_bytes;
+
+      // If the remaining number of bytes we need to copy is less than BLOCK_SIZE then
+      // only copy the amount that remains. If we copied BLOCK_SIZE number of bytes we'd
+      // end up with garbage at the end of the file.
+      if( copy_size < BLOCK_SIZE )
+      {
+        num_bytes = copy_size;
+      }
+      else 
+      {
+        num_bytes = BLOCK_SIZE;
+      }
+
+      // Write num_bytes number of bytes from our data array into our output file.
+      fwrite( data_blocks[block_index], BLOCK_SIZE, 1, ofp ); 
+
+      // Reduce the amount of bytes remaining to copy, increase the offset into the file
+      // and increment the block_index to move us to the next data block.
+      copy_size -= BLOCK_SIZE;
+      offset    += BLOCK_SIZE;
+      block_index ++;
+
+      // Since we've copied from the point pointed to by our current file pointer, increment
+      // offset number of bytes so we will be ready to copy to the next area of our output file.
+      fseek( ofp, offset, SEEK_SET );
+    }
+	return;
 }
 
-void printInode()
+void openFS(char* filename)
 {
-	int i;
-	int inode_idx = 0;
-	for(i = 0; i < 125; i++)
-	{
-		printf("inode_array_ptr[%d]->date 	= %ld\n", i, inode_array_ptr[i]->date);
-		printf("inode_array_ptr[%d]->valid 	= %d\n", i, inode_array_ptr[i]->valid);
-		printf("inode_array_ptr[%d]->size 	= %d\n", i, inode_array_ptr[i]->size);
-		printf("inode_array_ptr[%d]->blocks[0]	= %d\n", i, inode_array_ptr[i]->blocks[0]);
-		//printf("inode_idx = %d\n", inode_idx);
-	}
-
+  
+ 	//Open the input file read-only
+	printf("open(): open %s for reading\n", filename);
+	FILE* ifp = fopen(filename, "r");
+	printf("open: after FILE* ifp = fopen(): ifp = %p\n", ifp);
+	
+	//fread(&data_blocks[0], 8192*4226, 1, ifp);
+	fread(&data_blocks[0], 8192*4096, 1, ifp);
+	
+    printf("\nEnding open()\n\n");
+    return;
+    
 }
 
-int findDirectoryIndex(char* filename)
-{
-	printf("findDirectoryIndex()\n");
-	printf("filename = %s\n", filename);
-	int dir_idx;
-	int i;
-	int flag;
-	for(i = 0; i < NUM_FILES; i++)
-	{
-		if(directory_ptr[i].name != NULL)
-		{
-			flag = strcmp(directory_ptr[i].name, filename);
-			if(flag == 0)
-			{
-				printf("flag = 0\n");
-				dir_idx = i;
-			}
-		}
-	}
-	printf("%s dir_idx= %d\n", filename, dir_idx);
-	return dir_idx;
+//**********************************************************************
+
+int del(char* filename)
+{   
+    int i = 0;
+    int dir_idx = 0;
+    int inode_idx = 0;
+    //int check = 0;
+    int inode_offset = 5;
+    for(i = 0; i < 125; i++)
+    {
+      if(strcmp(directory_ptr[i+inode_offset].name, filename))
+      {
+		dir_idx = i;
+		inode_idx = i+5;
+		
+		directory_ptr[dir_idx+inode_offset].valid = 0;
+		inode_array_ptr[inode_idx]->valid = 0;
+		//printf("del: inside  for loop: inside if statement: directory_ptr[%d].valid = %d\n",i, directory_ptr[dir_idx+inode_offset].valid);
+		//printf("del: inside  for loop: inside if statement: inode_array_ptr[%d]->valid = %d\n",i,  inode_array_ptr[inode_idx]->valid);
+		return 1;
+      }
+    }
+    return -1;
+    
 }
 	
 //**********************************************************************
@@ -632,183 +642,183 @@ int main(int argc, char* argv[])
 	
 	file_time = time(NULL);
 	
-	printf("Time as time_t (time in seconds from January 1, 1970): %ld\n", file_time);
-	printf("Time as string; %s\n", ctime(&file_time));
-	
-	printf("%d %s %s\n", 65535, ctime(&file_time), "file.txt");
     
     //This is pointer to where the command line input string is stored
-  char* command_string = (char*) malloc( MAX_COMMAND_SIZE );
+  	char* command_string = (char*) malloc( MAX_COMMAND_SIZE );
   
     
-  while( 1 )//continuous input in the bash shell loop
-  {
-    // Print out the msh prompt
-    //printf ("mfs>");//print the bash shell prompt
-    printf ("mfs++++++++++++++++++++++++++++>");//print the bash shell prompt
+  	while( 1 )//continuous input in the bash shell loop
+  	{
+		// Print out the msh prompt
+		//printf ("mfs>");//print the bash shell prompt
+		printf ("mfs>");//print the bash shell prompt
 
-    
-    char* fgetsreturn = fgets (command_string, MAX_COMMAND_SIZE, stdin);
+		
+		char* fgetsreturn = fgets (command_string, MAX_COMMAND_SIZE, stdin);
 
-    while( !fgetsreturn );
-    //..................................................................
-    //REQUIREMENT 6
-    //Check for blank line input (Requirement 6)
-    if(command_string[0] == '\n') 
-    {
-        continue;
-    }
-    //..................................................................
-    //Separate input into tokens
-    /* Parse input */
-    char* token[MAX_NUM_ARGUMENTS];
+		while( !fgetsreturn );
+		//..................................................................
+		//REQUIREMENT 6
+		//Check for blank line input (Requirement 6)
+		if(command_string[0] == '\n') 
+		{
+			continue;
+		}
+		//..................................................................
+		//Separate input into tokens
+		/* Parse input */
+		char* token[MAX_NUM_ARGUMENTS];
 
-    int   token_count = 0;                                 
-                                                           
-    // Pointer to point to the token
-    // parsed by strsep
-    char* argument_ptr;                                         
-                                                           
-    char* working_string  = strdup( command_string );  
-          
-    // we are going to move the working_string pointer so
-    // keep track of its original value so we can deallocate
-    // the correct amount at the end
-    char* head_ptr = working_string;
+		int   token_count = 0;                                 
+															
+		// Pointer to point to the token
+		// parsed by strsep
+		char* argument_ptr;                                         
+															
+		char* working_string  = strdup( command_string );  
+			
+		// we are going to move the working_string pointer so
+		// keep track of its original value so we can deallocate
+		// the correct amount at the end
+		char* head_ptr = working_string;
 
-    // Tokenize the input strings with whitespace used as the delimiter
-    while ( ( (argument_ptr = strsep(&working_string, WHITESPACE ) ) != NULL) && 
-              (token_count<MAX_NUM_ARGUMENTS))
-    {
-      token[token_count] = strndup( argument_ptr, MAX_COMMAND_SIZE );
-      if( strlen( token[token_count] ) == 0 )
-      {
-        token[token_count] = NULL;
-      }
-        token_count++;
-    }
-    
-    //..................................................................
-    //Now print the tokenized input as a debug check
-     //TODO Remove this code and replace with your shell functionality
+		// Tokenize the input strings with whitespace used as the delimiter
+		while ( ( (argument_ptr = strsep(&working_string, WHITESPACE ) ) != NULL) && 
+				(token_count<MAX_NUM_ARGUMENTS))
+		{
+		token[token_count] = strndup( argument_ptr, MAX_COMMAND_SIZE );
+		if( strlen( token[token_count] ) == 0 )
+		{
+			token[token_count] = NULL;
+		}
+			token_count++;
+		}
+		
+		//..................................................................
+		//Now print the tokenized input as a debug check
+		//TODO Remove this code and replace with your shell functionality
 
-        //..................................................................
-    //Requirement 5
-    //Check for exit commands "quit" and "exit" 
-    
-    if(strstr(token[0], "exit")!=NULL) 
-        return  0;
-    
-    //if(strcmp("exit", token[0])==0) 
-    if(strstr(token[0], "quit")!=NULL)   
-        return  0;
-    
-    //..................................................................
+			//..................................................................
+		//Requirement 5
+		//Check for exit commands "quit" and "exit" 
+		
+		if(strstr(token[0], "exit")!=NULL) 
+			return  0;
+		
+		//if(strcmp("exit", token[0])==0) 
+		if(strstr(token[0], "quit")!=NULL)   
+			return  0;
+		
+		//..................................................................
 
-    //Get current working directory
-    char cwd[256];
-    getcwd(cwd, sizeof(cwd));
-
-
-    //..................................................................   
-
-    //execute command "put"
-
-    if((strstr(token[0], "put")!=NULL) && strstr(token[1], "")!=NULL)//call put()
-    {
-	
-        //char* filename;
-        printf("Call function put()\n");
-        printf("Local file name token[1]= %s\n", token[1]);
-		printf("token[1] = %s\n", token[1]);
-		int token_length = strlen(token[1]);
-		printf("token_length = %d\n", token_length);
-        put(token[1]);
+		//Get current working directory
+		char cwd[256];
+		getcwd(cwd, sizeof(cwd));
 
 
-    }
-        
+		//..................................................................   
 
-    //..................................................................
-    
-        //execute command "list"
+		//execute command "put"
 
-    if((strstr(token[0], "list")!=NULL))//call listImageFiles()
-    {
-	printf("Call function listImageFiles()\n");
-           listImageFiles();
+		if((strstr(token[0], "put")!=NULL) && strstr(token[1], "")!=NULL)//call put()
+		{
+		
+			//char* filename;
+			int token_length = strlen(token[1]);
+			put(token[1]);
+		}
 
-    }
-        
-    //..................................................................   
-    //execute command "df"
+		//..................................................................   
 
-    if((strstr(token[0], "df")!=NULL))//call df()
-    {
-	printf("Call function df()\n");
-        int df_return = df();
-        printf("%d bytes free.\n", df_return);//df_return = count*BLOCK_SIZE
+		//execute command "get"
 
-    }
-        
-    //..................................................................   
-    
-        //execute command "open"
+		if((strstr(token[0], "get")!=NULL) && strstr(token[1], "")!=NULL)//call put()
+		{
+		
+			//char* filename;
+			int token_length = strlen(token[1]);
+			get(token[1]);
+		}
+			
 
-    if((strstr(token[0], "open")!=NULL) && strstr(token[1], "")!=NULL)//call put()
-    //if((strstr(token[0], "open")!=NULL))//call put()
-    {
-        //char* filename;
-        printf("Call function open()\n");
-        printf("Local file name token[1]= %s\n", token[1]);
-        put(token[1]);
+		//..................................................................
+		
+			//execute command "list"
+
+		if((strstr(token[0], "list")!=NULL))//call listImageFiles()
+		{
+			listImageFiles();
+
+		}
+			
+		//..................................................................   
+		//execute command "df"
+
+		if((strstr(token[0], "df")!=NULL))//call df()
+		{
+			int df_return = df();
+			printf("%d bytes free.\n", df_return);//df_return = count*BLOCK_SIZE
+
+		}
+			
+		//..................................................................   
+		
+			//execute command "open"
+
+		if((strstr(token[0], "open")!=NULL) && strstr(token[1], "")!=NULL)//call put()
+		//if((strstr(token[0], "open")!=NULL))//call put()
+		{
+			//char* filename;
+			openFS(token[1]);
+		}
+
+		//..................................................................   
+		
+			//execute command "del"
+
+		if((strstr(token[0], "del")!=NULL) && strstr(token[1], "")!=NULL)//call put()
+		//if((strstr(token[0], "open")!=NULL))//call put()
+		{
+			//char* filename;
+			del(token[1]);
+		}
+
+		//..................................................................
+		
+			//execute function "printDirectory()"
+
+		if((strstr(token[0], "directory")!=NULL))//call listImageFiles()
+		{
+			printDirectory();
+		}
+
+		//..................................................................
+		
+			//execute function "printInode()"
+
+		if((strstr(token[0], "inode")!=NULL))//call listImageFiles()
+		{
+			printInode();
+
+		}
+
+		//..................................................................   
+
+		//execute function "findDirectoryIndex"
+
+		if((strstr(token[0], "dirindex")!=NULL) && strstr(token[1], "")!=NULL)//call put()
+		{
+		
+			//char* filename;
+			int token_length = strlen(token[1]);
+			findDirectoryIndex(token[1]);
+		}
+			
 
 
-    }
-
-	//..................................................................
-    
-        //execute function "printDirectory()"
-
-    if((strstr(token[0], "directory")!=NULL))//call listImageFiles()
-    {
-		printDirectory();
-    }
-
-	//..................................................................
-    
-        //execute function "printInode()"
-
-    if((strstr(token[0], "inode")!=NULL))//call listImageFiles()
-    {
-		printInode();
-
-    }
-
-	//..................................................................   
-
-    //execute function "findDirectoryIndex"
-
-    if((strstr(token[0], "dirindex")!=NULL) && strstr(token[1], "")!=NULL)//call put()
-    {
-	
-        //char* filename;
-        printf("Call function findDirectoryIndex()\n");
-        printf("Local file name token[1]= %s\n", token[1]);
-		printf("token[1] = %s\n", token[1]);
-		int token_length = strlen(token[1]);
-		printf("token_length = %d\n", token_length);
-        findDirectoryIndex(token[1]);
-
-
-    }
-        
-
-
-    
-    free( head_ptr );
-
-  }//while(1) loop
+		
+		free( head_ptr );
+	}//while(1) loop
   
   return 0;
   
