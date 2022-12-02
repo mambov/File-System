@@ -51,6 +51,15 @@ Due: Wednesday, November 30, 2022 by 5:30 PM CST
 #include <signal.h>
 #include <time.h>
 #include <sys/stat.h>
+#include <stdint.h>
+
+#define FIRST_BIT  0x1
+#define SECOND_BIT 0x2
+#define THIRD_BIT  0x4
+#define FOURTH_BIT 0x8
+
+uint8_t bitmap;
+
 
 #define WHITESPACE " \t\n"      // We want to split our command line up into tokens
                                 // so we need to define what delimits our tokens.
@@ -90,8 +99,17 @@ struct inode{
 	int valid;
 	int size;
 	int blocks[MAX_BLOCKS_PER_FILE];
+	int hidden;
+	int read_only;
 };
 
+struct deleted{
+	char* name;
+	int size;
+	int dir_idx;
+};
+
+struct deleted* deleted_array;
 
 
 //......................................................................
@@ -107,12 +125,17 @@ void init()
 	int i; 
 
 	directory_ptr = (struct directory_entry*) &data_blocks[0];
+	deleted_array = (struct deleted*) &data_blocks[0];
 	
 	for(i = 0; i < NUM_FILES; i++)
 	{
 		directory_ptr[i].name = NULL;
 		directory_ptr[i].valid = 0;
 		directory_ptr[i].inode_idx = 0;
+
+		deleted_array[i].name = NULL;
+		deleted_array[i].size = 0;
+		deleted_array[i].dir_idx = 0;
 		
 	}
 	
@@ -207,63 +230,9 @@ void openFS(char* filename)
     
 }
 
-//**********************************************************************
-
-int del(char* filename)
-{   
-    int i = 0;
-    int dir_idx = 0;
-    int inode_idx = 0;
-    //int check = 0;
-    int inode_offset = 5;
-    for(i = 0; i < 125; i++)
-    {
-      if(strcmp(directory_ptr[i+inode_offset].name, filename))
-      {
-		dir_idx = i;
-		inode_idx = i+5;
-		
-		directory_ptr[dir_idx+inode_offset].valid = 0;
-		inode_array_ptr[inode_idx]->valid = 0;
-		//printf("del: inside  for loop: inside if statement: directory_ptr[%d].valid = %d\n",i, directory_ptr[dir_idx+inode_offset].valid);
-		//printf("del: inside  for loop: inside if statement: inode_array_ptr[%d]->valid = %d\n",i,  inode_array_ptr[inode_idx]->valid);
-		return 1;
-      }
-    }
-    return -1;
-    
-}
 
 
 
-//**********************************************************************
-
-void listImageFiles()
-{
-	//printf("put:Time as string; %s\n", ctime(&file_time));
-    int i;
-	int found = 0;
-	int num_files = 0;
-	for(i = 0; i < NUM_FILES; i++)
-	{	
-		if(directory_ptr[i].name != NULL)
-		{
-			num_files++;
-			if(num_files == 1)
-			{
-				printf("Name\tSize\tDate\n");
-			}
-			int inode_idx = directory_ptr[i].inode_idx;
-			printf("%s\t%d\t%s", directory_ptr[i].name, inode_array_ptr[inode_idx]->size, ctime(&inode_array_ptr[inode_idx]->date));
-		}
-	} 
-	if(num_files == 0)
-	{
-		printf("No files found.\n");
-	}
-
-
-}
 
 //**********************************************************************
 //This function is called when user types "df"
@@ -675,6 +644,108 @@ void getONE(char* filename )
 	return;
 }
 
+//**********************************************************************
+
+void listImageFiles()
+{
+	//printf("put:Time as string; %s\n", ctime(&file_time));
+    int i;
+	int found = 0;
+	int num_files = 0;
+	for(i = 0; i < NUM_FILES; i++)
+	{	
+		if(directory_ptr[i].name != NULL)
+		{
+			num_files++;
+			if(num_files == 1)
+			{
+				printf("Name\tSize\tDate\n");
+			}
+			int inode_idx = directory_ptr[i].inode_idx;
+			printf("%s\t%d\t%s", directory_ptr[i].name, inode_array_ptr[inode_idx]->size, ctime(&inode_array_ptr[inode_idx]->date));
+		}
+	} 
+	if(num_files == 0)
+	{
+		printf("No files found.\n");
+	}
+
+
+}
+
+//**********************************************************************
+
+/*
+//......................................................................
+struct directory_entry{
+	char* name;
+	int valid;
+	int inode_idx;
+};
+
+//......................................................................
+
+struct directory_entry* directory_ptr;//pointer to directory_entry struct
+
+//......................................................................
+
+struct inode{
+	time_t date;
+	int valid;
+	int size;
+	int blocks[MAX_BLOCKS_PER_FILE];
+};*/
+void del(char* filename)
+{   
+    int dir_idx = -1;
+	int del_idx = -1;
+	int i;
+	int flag;
+	for(i = 0; i < NUM_FILES; i++)
+	{
+		if(directory_ptr[i].name != NULL)
+		{
+			flag = strcmp(directory_ptr[i].name, filename);
+			if(flag == 0)
+			{
+				dir_idx = i;
+			}
+		}
+	}
+
+	for(i = 0; i < NUM_FILES; i++)
+	{
+		if(deleted_array[i].name == NULL && del_idx == -1)
+		{
+			del_idx = i;
+		}
+	}
+
+	if( del_idx != -1)
+	{
+		deleted_array[i].name = NULL;
+		deleted_array[i].size = 0;
+		deleted_array[i].dir_idx = 0;
+	}
+
+	if( dir_idx != -1 )
+	{
+		int inode_idx = directory_ptr[dir_idx].inode_idx;
+		directory_ptr[dir_idx].name = NULL;
+		directory_ptr[dir_idx].valid = 0;
+		inode_array_ptr[inode_idx] = 0;
+	}
+	else
+	{
+		printf("Error: File not found.\n");
+	}
+	
+
+
+	//printf("directory_ptr[%d].name = %s\n", dir_idx, directory_ptr[dir_idx].name);
+    return;
+}
+
 
 	
 //**********************************************************************
@@ -691,10 +762,36 @@ int main(int argc, char* argv[])
 {
   
     init();
-    
 	time_t file_time;
-	
 	file_time = time(NULL);
+	// initialize the bitmap to 0
+	bitmap = 0; 
+
+	// set the second bit in the bitmap
+	bitmap |= SECOND_BIT;
+
+	// verify the bit is set
+	if( bitmap & SECOND_BIT )
+	{
+		printf("The second bit is set\n");
+	}
+
+	// clear the second bit
+	bitmap &= SECOND_BIT;
+
+	// verify the bit is clear
+	if( bitmap & SECOND_BIT )
+	{
+		printf("The second bit is cleared\n");
+	}
+
+	/*
+	unsigned char used_blocks[4226][8192];
+	unsigned char * used_blocks;
+	used_blocks = (unsigned char*)&data_blocks[0];
+	Then when you want to set block 100 as being used you can just do:
+	used_blocks[100] = 1;
+	*/
 	
     
     //This is pointer to where the command line input string is stored
@@ -971,8 +1068,8 @@ COMPLETE	2.5	The list command shall display
 				list: No files found.
 			### 2.5.2 File that are marked as hidden shall not be listed
 
-2.6 The df command
-	The df command shall display the amount of free space int he file system in bytes
+COMPLETE 	2.6 The df command
+			The df command shall display the amount of free space int he file system in bytes
 
 2.7 The open command
 	The open command shall open a file system image file with the name and path given by the user
