@@ -150,7 +150,7 @@ void printInode()
 {
 	int i;
 	int inode_idx = 0;
-	for(i = 0; i < 125; i++)
+	for(i = 0; i < NUM_FILES; i++)
 	{
 		printf("inode_array_ptr[%d]->date 	= %ld\n", i, inode_array_ptr[i]->date);
 		printf("inode_array_ptr[%d]->valid 	= %d\n", i, inode_array_ptr[i]->valid);
@@ -240,26 +240,29 @@ int del(char* filename)
 
 void listImageFiles()
 {
-    //printf("\nBeginning listImageFiles()\n");
+	//printf("put:Time as string; %s\n", ctime(&file_time));
     int i;
-
-     
-	int inode_offset = 5;
-	for(i = 0; i < 125; i++)
-	{
-	  //printf("listImageFiles: inside for loop: i = %d\n", i);
-		if(directory_ptr[i+inode_offset].valid != 0)//inode is not being used
+	int found = 0;
+	int num_files = 0;
+	for(i = 0; i < NUM_FILES; i++)
+	{	
+		if(directory_ptr[i].name != NULL)
 		{
-		      printf("%d %s %s \n", inode_array_ptr[i+5]->size, ctime(&inode_array_ptr[i+5]->date), directory_ptr[i].name);
-		      int length = strlen(directory_ptr[i].name);
-		      printf("listImageFiles: at end of if statement: length = %d\n", length);
-		      
-
+			num_files++;
+			if(num_files == 1)
+			{
+				printf("Name\tSize\tDate\n");
+			}
+			int inode_idx = directory_ptr[i].inode_idx;
+			printf("%s\t%d\t%s", directory_ptr[i].name, inode_array_ptr[inode_idx]->size, ctime(&inode_array_ptr[inode_idx]->date));
 		}
+	} 
+	if(num_files == 0)
+	{
+		printf("No files found.\n");
 	}
-	//printf("Ending findFreeDirectoryEntry()\n\n");
-    return;
-    
+
+
 }
 
 //**********************************************************************
@@ -832,7 +835,6 @@ int main(int argc, char* argv[])
 		if((strstr(token[0], "del")!=NULL) && strstr(token[1], "")!=NULL)//call put()
 		//if((strstr(token[0], "open")!=NULL))//call put()
 		{
-			//char* filename;
 			del(token[1]);
 		}
 
@@ -961,13 +963,13 @@ COMPLETE 	2.2 The get command shall allow the user to retrieve a file from the f
 2.4.3 If the file is not found in the directory then the following shall be printed:
 	undel: Can not find the file
 
-2.5 The list command shall display 
-	all the files in the file system
-	their size in bytes and
-	the time they were added to the file system
-2.5.1 If no files are in the file system a message shall be printed:
-	list: No files found.
-2.5.2 File that are marked as hidden shall not be listed
+COMPLETE	2.5	The list command shall display 
+				all the files in the file system
+				their size in bytes and
+				the time they were added to the file system
+			2.5.1 If no files are in the file system a message shall be printed:
+				list: No files found.
+			### 2.5.2 File that are marked as hidden shall not be listed
 
 2.6 The df command
 	The df command shall display the amount of free space int he file system in bytes
