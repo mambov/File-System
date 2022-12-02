@@ -86,6 +86,7 @@ struct directory_entry{
 	char* name;
 	int valid;
 	int inode_idx;
+	int deleted;
 };
 
 //......................................................................
@@ -103,17 +104,6 @@ struct inode{
 	int read_only;
 };
 
-struct deleted{
-	char* name;
-	time_t date;
-	int size;
-	int dir_idx;
-	int inode_idx;
-};
-
-struct deleted* deleted_array;
-
-
 //......................................................................
 
 struct inode* inode_array_ptr[NUM_INODES];
@@ -127,19 +117,13 @@ void init()
 	int i; 
 
 	directory_ptr = (struct directory_entry*) &data_blocks[0];
-	deleted_array = (struct deleted*) &data_blocks[0];
 	
 	for(i = 0; i < NUM_FILES; i++)
 	{
 		directory_ptr[i].name = NULL;
 		directory_ptr[i].valid = 0;
 		directory_ptr[i].inode_idx = 0;
-
-		deleted_array[i].name = NULL;
-		deleted_array[i].date = 0;
-		deleted_array[i].size = 0;
-		deleted_array[i].dir_idx = 0;
-		deleted_array[i].inode_idx = 0;
+		directory_ptr[i].deleted = 0;
 		
 	}
 	
@@ -356,7 +340,7 @@ void put(char* filename)
 	//..................................................................
     if(buf.st_size > df())
     {
-        printf("Error: Not enough room in the file system (1) \n");
+        printf("Error: Not enough room in the file system \n");
         return;
     }
     
@@ -364,7 +348,7 @@ void put(char* filename)
     int dir_idx = findFreeDirectoryEntry();
     if(dir_idx == -1)
     {
-        printf("Error: Not enough room in the file system (2)\n");
+        printf("Error: Not enough room in the file system\n");
         return;
     }
     
@@ -399,7 +383,7 @@ void put(char* filename)
 	
 	if(block_index == -1)
 	{
-		printf("Error: Can't find free block(1)\n");
+		printf("Error: Can't find free block\n");
 		//Cleanup a bunch of directory and inode stuff (optional)
 		return;
 	}
@@ -411,7 +395,7 @@ void put(char* filename)
 		
 		if(block_index == -1)
 		{
-			printf("Error: Can't find free block(2)\n");
+			printf("Error: Can't find free block\n");
 			//cleanup a bunch of directory and inode stuff
 			return;
 		}
@@ -421,7 +405,7 @@ void put(char* filename)
 		int inode_block_entry = findFreeInodeBlockEntry(inode_idx);
 		if(inode_block_entry == -1)
 		{
-			printf("Error: Can't find free node block(1)\n");
+			printf("Error: Can't find free node block\n");
 			//cleanup a bunch of directory and inode stuff
 			return;
 		}
@@ -456,14 +440,14 @@ void put(char* filename)
 		
 		if(block_index == -1)
 		{
-			printf("Error: Can't find free block(3)\n");
+			printf("Error: Can't find free block\n");
 			//Cleanup a bunch of directory and inode stuff
 			return;
 		}
 		int inode_block_entry = findFreeInodeBlockEntry(inode_idx);
 		if(inode_block_entry == -1)
 		{
-			printf("Error: Can't find free node block(2)\n");
+			printf("Error: Can't find free node block\n");
 			//Cleanup a bunch of directory and inode stuff
 			return;
 		}
@@ -654,20 +638,13 @@ void listImageFiles()
 {
 	//printf("put:Time as string; %s\n", ctime(&file_time));
     int i;
-	int found = 0;
 	int num_files = 0;
 	for(i = 0; i < NUM_FILES; i++)
 	{	
-		if(directory_ptr[i].name != NULL)
+		if(directory_ptr[i].valid != 0)
 		{
 			
 			num_files++;
-			/*
-			if(num_files == 1)
-			{
-				printf("Name\tSize\tDate\n");
-			}
-			*/
 			int inode_idx = directory_ptr[i].inode_idx;
 			printf("%s\t%d\t%s", directory_ptr[i].name, inode_array_ptr[inode_idx]->size, ctime(&inode_array_ptr[inode_idx]->date));
 		}
@@ -676,8 +653,6 @@ void listImageFiles()
 	{
 		printf("No files found.\n");
 	}
-
-
 }
 
 //**********************************************************************
@@ -710,7 +685,7 @@ void del(char* filename)
 	int flag;
 	for(i = 0; i < NUM_FILES; i++)
 	{
-		if(directory_ptr[i].name != NULL)
+		if(directory_ptr[i].valid != 0)
 		{
 			flag = strcmp(directory_ptr[i].name, filename);
 			if(flag == 0)
@@ -720,28 +695,17 @@ void del(char* filename)
 		}
 	}
 
-	for(i = 0; i < NUM_FILES; i++)
-	{
-		if(deleted_array[i].name == NULL && del_idx == -1)
-		{
-			del_idx = i;
-		}
-	}
 
-	if( del_idx != -1)
+	if( dir_idx != -1)
 	{
-		deleted_array[i].name = NULL;
-		deleted_array[i].size = 0;
-		deleted_array[i].dir_idx = 0;
-	}
-
-	if( dir_idx != -1 )
-	{
-		// clear the elements of the directory_ptr to its initial default state
 		int inode_idx = directory_ptr[dir_idx].inode_idx;
-		directory_ptr[dir_idx].name = NULL;
+		// retain necessary information stored in directory_ptr
+		
+		// mark the directory pointer as deleted
+		// set the valid to 0 so that space may become available again.
+		
 		directory_ptr[dir_idx].valid = 0;
-		directory_ptr[dir_idx].inode_idx = 0;
+		directory_ptr[dir_idx].deleted = 1;
 
 		// the inode_idx will have its valid value set to 0 to make the space available for additional files.
 		// this will leave it with the possibility of being rewritten
@@ -757,16 +721,36 @@ void del(char* filename)
     return;
 }
 
+/*
+2.4 The undel command - the undel command shall allow the user to undelete a file that has been deleted from the file system.
+2.4.2 If the file does exist in the file system direcory and marked deleted it shall be undeleted.
+2.4.3 If the file is not found in the directory then the following shall be printed:
+	undel: Can not find the file
+*/
 void undel(char *filename)
 {
-	// check the directory index of where the deleted file previously was
-	// if it is still available, 
-		// reinsert it back into its old place
-	// if the directory index is no longer available, 
-		// find the next available valid directory index
-	// Once new valid directory is found, 
-		// place the inode structure previously attached to the old directory index
-		// into the new directory index
+	int i;
+	int num_files = 0;
+	int flag = -1;
+	for(i = 0; i < NUM_FILES; i++)
+	{	
+		if(directory_ptr[i].name != NULL)
+		{
+			flag = strcmp(directory_ptr[i].name, filename);
+			if(flag == 0)
+			{
+				int inode_idx = directory_ptr[i].inode_idx;
+				directory_ptr[i].valid = 1;
+				directory_ptr[i].deleted = 0;
+				inode_array_ptr[inode_idx]->valid = 1;
+			}
+		}
+		
+	} 
+	if(flag != 0)
+	{
+		printf("No files found.\n");
+	}
 }
 
 
@@ -789,6 +773,7 @@ int main(int argc, char* argv[])
 	file_time = time(NULL);
 	// initialize the bitmap to 0
 	bitmap = 0; 
+	int bit_verify = 0;
 
 	// set the second bit in the bitmap
 	bitmap |= SECOND_BIT;
@@ -796,7 +781,7 @@ int main(int argc, char* argv[])
 	// verify the bit is set
 	if( bitmap & SECOND_BIT )
 	{
-		printf("The second bit is set\n");
+		bit_verify = 1;
 	}
 
 	// clear the second bit
@@ -805,7 +790,7 @@ int main(int argc, char* argv[])
 	// verify the bit is clear
 	if( bitmap & SECOND_BIT )
 	{
-		printf("The second bit is cleared\n");
+		bit_verify = 0;
 	}
 
 	/*
@@ -950,13 +935,23 @@ int main(int argc, char* argv[])
 
 		//..................................................................   
 		
+			//execute command "undel"
+
+		if((strstr(token[0], "undel")!=NULL) && strstr(token[1], "")!=NULL)//call put()
+		{
+			undel(token[1]);
+		}
+
+		//..................................................................   
+		
 			//execute command "del"
 
-		if((strstr(token[0], "del")!=NULL) && strstr(token[1], "")!=NULL)//call put()
-		//if((strstr(token[0], "open")!=NULL))//call put()
+		else if((strstr(token[0], "del")!=NULL) && strstr(token[1], "")!=NULL)//call put()
 		{
 			del(token[1]);
 		}
+
+		
 
 		//..................................................................
 		
@@ -1094,32 +1089,30 @@ COMPLETE	2.5	The list command shall display
 COMPLETE 	2.6 The df command
 			The df command shall display the amount of free space int he file system in bytes
 
-2.7 The open command
-	The open command shall open a file system image file with the name and path given by the user
-2.7.1 If the file is not found a message shall be printed
-	open: File not found
+### 2.7 The open command
+		The open command shall open a file system image file with the name and path given by the user
+	2.7.1 If the file is not found a message shall be printed
+		open: File not found
 
-2.8 The save command
-	The save command shall write the file system to disk.
+### 2.8 The save command
+		The save command shall write the file system to disk.
 
-2.9 The attrib command
-	The attrib command sets or removes an attribute from the file.
-2.9.1 Valid attributes are:
-	h
-	r
-2.9.2 To set the attribute on the file the attribute tag is given with a +, ex:
-	attrib +h foo.txt
-2.9.3 To remove the attribute on the file the attribute tag is given with a -, ex:
-	attrib -h foo.txt
+### 2.9 The attrib command
+		The attrib command sets or removes an attribute from the file.
+	2.9.1 Valid attributes are:
+		h
+		r
+	2.9.2 To set the attribute on the file the attribute tag is given with a +, ex:
+		attrib +h foo.txt
+	2.9.3 To remove the attribute on the file the attribute tag is given with a -, ex:
+		attrib -h foo.txt
+	2.9.4 If the file is not found a message shall be printed:
+		attrib: File not found
 
-2.9.4 If the file is not found a message shall be printed:
-	attrib: File not found
-
-2.10 The createfs command
-	The createfs command shall create a file system image file with the named provided by the user
-
-2.10.1 If the file name is not provided a message shall be printed:
-	createfs: File not found
+### 2.10 The createfs command
+		The createfs command shall create a file system image file with the named provided by the user
+	2.10.1 If the file name is not provided a message shall be printed:
+		createfs: File not found
 
 */
 
