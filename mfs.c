@@ -184,7 +184,12 @@ int findDirectoryIndex(char* filename)
 
 
 //**********************************************************************
-
+/*
+2.7 The open command
+	The open command shall open a file system image file with the name and path given by the user
+2.7.1 If the file is not found a message shall be printed
+	open: File not found
+*/
 void open(char* filename)
 {
     init();
@@ -201,6 +206,12 @@ void open(char* filename)
     return;
     
 }
+
+//**********************************************************************
+/*
+2.8 The save command
+	The save command shall write the file system to disk.
+*/
 
 
 
@@ -504,16 +515,16 @@ void put(char* filename)
 */
 
 //**********************************************************************
-void get(char* filename)
+void get(char* filename_read, char* filename_write)
 {
 
 	// Now, open the output file that we are going to write the data to.
     FILE *ofp;
-    ofp = fopen(filename, "w");
+    ofp = fopen(filename_write, "w");
 
     if( ofp == NULL )
     {
-      printf("Could not open output file: %s\n", filename );
+      printf("Could not open output file: %s\n", filename_write );
       perror("Opening output file returned\n");
       return;
     }
@@ -522,7 +533,7 @@ void get(char* filename)
 	// Find the dir_idx in directory_ptr associated with filename
 	
 	// if the file is not found
-	int dir_idx = findDirectoryIndex(filename);
+	int dir_idx = findDirectoryIndex(filename_read);
 	if( dir_idx == -1)
 	{
 		printf("Error: File not found\n");
@@ -534,11 +545,11 @@ void get(char* filename)
 
 	
     // Initialize our offsets and pointers just we did above when reading from the file.
-    int block_index = 0;
+    int block_index = inode_array_ptr[inode_idx]->blocks[0];
     int copy_size   = inode_array_ptr[inode_idx]->size;
     int offset      = 0;
 
-    printf("Writing %d bytes to %s\n", (int)copy_size, filename );
+    printf("Writing %d bytes to %s\n", (int)copy_size, filename_write );
 
     // Using copy_size as a count to determine when we've copied enough bytes to the output file.
     // Each time through the loop, except the last time, we will copy BLOCK_SIZE number of bytes from
@@ -546,7 +557,7 @@ void get(char* filename)
     // On the last iteration of the loop, instead of copying BLOCK_SIZE number of bytes we just copy
     // how ever much is remaining ( copy_size % BLOCK_SIZE ).  If we just copied BLOCK_SIZE on the
     // last iteration we'd end up with gibberish at the end of our file. 
-	
+
     while( copy_size > 0 )
     { 
 
@@ -563,6 +574,7 @@ void get(char* filename)
       {
         num_bytes = BLOCK_SIZE;
       }
+
 
       // Write num_bytes number of bytes from our data array into our output file.
       fwrite( data_blocks[block_index], BLOCK_SIZE, 1, ofp ); 
@@ -732,12 +744,12 @@ int main(int argc, char* argv[])
 
 		//execute command "get"
 
-		if((strstr(token[0], "get")!=NULL) && strstr(token[1], "")!=NULL)//call put()
+		if((strstr(token[0], "get")!=NULL) && strstr(token[1], "")!=NULL && strstr(token[2], "")!=NULL)//call put()
 		{
 		
 			//char* filename;
 			int token_length = strlen(token[1]);
-			get(token[1]);
+			get(token[1], token[2]);
 		}
 			
 
