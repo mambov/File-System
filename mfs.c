@@ -105,8 +105,10 @@ struct inode{
 
 struct deleted{
 	char* name;
+	time_t date;
 	int size;
 	int dir_idx;
+	int inode_idx;
 };
 
 struct deleted* deleted_array;
@@ -134,8 +136,10 @@ void init()
 		directory_ptr[i].inode_idx = 0;
 
 		deleted_array[i].name = NULL;
+		deleted_array[i].date = 0;
 		deleted_array[i].size = 0;
 		deleted_array[i].dir_idx = 0;
+		deleted_array[i].inode_idx = 0;
 		
 	}
 	
@@ -733,20 +737,36 @@ void del(char* filename)
 
 	if( dir_idx != -1 )
 	{
+		// clear the elements of the directory_ptr to its initial default state
 		int inode_idx = directory_ptr[dir_idx].inode_idx;
 		directory_ptr[dir_idx].name = NULL;
 		directory_ptr[dir_idx].valid = 0;
-		inode_array_ptr[inode_idx] = 0;
+		directory_ptr[dir_idx].inode_idx = 0;
+
+		// the inode_idx will have its valid value set to 0 to make the space available for additional files.
+		// this will leave it with the possibility of being rewritten
+		// we will know if its been written if its new date no longer matches its old date
+		inode_array_ptr[inode_idx]->valid = 0;
 	}
 	else
 	{
 		printf("Error: File not found.\n");
 	}
-	
-
 
 	//printf("directory_ptr[%d].name = %s\n", dir_idx, directory_ptr[dir_idx].name);
     return;
+}
+
+void undel(char *filename)
+{
+	// check the directory index of where the deleted file previously was
+	// if it is still available, 
+		// reinsert it back into its old place
+	// if the directory index is no longer available, 
+		// find the next available valid directory index
+	// Once new valid directory is found, 
+		// place the inode structure previously attached to the old directory index
+		// into the new directory index
 }
 
 
@@ -1054,12 +1074,12 @@ COMPLETE 	2.2 The get command shall allow the user to retrieve a file from the f
 			2.2.3 If the file does not exist in the file system an error will be printed that states: 
 			get error: File not found.
 
-2.3 The del command shall allow the user to delete a file from the file system
-2.3.2 If the file does exist in the file system it shall be deleted and all the space available for additional files.
-	del error: File not found.
+COMPLETE 	2.3 The del command shall allow the user to delete a file from the file system
+			2.3.2 If the file does exist in the file system it shall be deleted and all the space available for additional files.
+				del error: File not found.
 
 2.4 The undel command - the undel command shall allow the user to undelete a file that has been deleted from the file system.
-2.4.2 If the file does exist in the file systme direcory and marked deleted it shall be undeleted.
+2.4.2 If the file does exist in the file system direcory and marked deleted it shall be undeleted.
 2.4.3 If the file is not found in the directory then the following shall be printed:
 	undel: Can not find the file
 
