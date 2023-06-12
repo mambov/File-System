@@ -1,19 +1,7 @@
-/*
- 
-  Name: Michael McKinley
-  ID: 1000255408
-  
-  Name: Diego Vester
-  ID: 1001329342
- 
- */
 
 /*
 CSE3320-002
-Fall 2022
 Programming Assignment 4: File System
-Assigned: November 14, 2022
-Due: December 2 2022 5:30 PM CST
 */
 
 
